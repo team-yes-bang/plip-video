@@ -1,10 +1,9 @@
 server:
-  # 팀 할당 포트로 기본값 변경. 충돌 시 SERVER_PORT env로 오버라이드 (YAML보다 우선)
-  port: ${SERVER_PORT:8081}
+  port: ${SERVER_PORT:8085}
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3308/plip_template?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    url: jdbc:mysql://localhost:3308/plip_video?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
   jpa:
     hibernate:
       ddl-auto: update
@@ -12,10 +11,13 @@ spring:
 
 eureka:
   instance:
-    # Docker Desktop 브리지 IP(172.x / host.docker.internal) 대신 localhost로 등록
     prefer-ip-address: false
     hostname: localhost
   client:
-    enabled: false # Develop PC Docker Eureka 오염 방지. 연동 테스트 시에만 true
+    enabled: false
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+plip:
+  aws:
+    enabled: false

@@ -35,7 +35,7 @@ jobs:
           event-type: deploy-service
           client-payload: |
             {
-              "service": "template",
+              "service": "video",
               "sha": "${{ github.sha }}",
               "repo": "${{ github.repository }}"
             }

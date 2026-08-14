@@ -1,14 +1,12 @@
-# {service} 를 모두 해당하는 서비스 이름으로 변경하세요.
-# 순수 서비스 전용 설정으로,
-# 인프라 의존성(`mysql` 등)을 최소화한 순수 애플리케이션 컨테이너 정의 파일입니다.
-# Develop 통합 환경 및 로컬에서 docker-compose 실행 시 이 파일을 `include` 해 사용합니다.
+# video 서비스 App 컨테이너 정의 (Develop PC SSOT)
+# plip-develop-env 에서 include 합니다.
 
 services:
-  {service}: # 서비스 id 로 변경 (예: user, agit)
+  video:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: plip-service-{service}
+    container_name: plip-service-video
     restart: unless-stopped
     depends_on:
       mysql:
@@ -20,10 +18,14 @@ services:
       SERVER_PORT: 8080
       DB_USERNAME: ${DB_USERNAME:-root}
       DB_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: plip_{service}
+      MYSQL_DATABASE: plip_video
       EUREKA_CLIENT_ENABLED: "true"
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:-http://eureka-server:8761/eureka/}
-      EUREKA_INSTANCE_HOSTNAME: {service}
+      EUREKA_INSTANCE_HOSTNAME: video
       EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+      AWS_ENABLED: ${AWS_ENABLED:-true}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_SQS_VIDEO_PROCESSING_QUEUE_URL: ${AWS_SQS_VIDEO_PROCESSING_QUEUE_URL}
     networks:
       - plip-net

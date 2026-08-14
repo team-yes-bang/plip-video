@@ -1,7 +1,5 @@
-# {service} 를 모두 해당하는 서비스 이름으로 변경하세요.
-# 로컬에서 도커로 개발할 때 사용하는 파일입니다.
-# 순수 서비스 전용 docker-compose.app.yml 파일을 `include`합니다.
-# 서비스 외 도커로 띄울 인프라 등은 이곳에 설정합니다.
+# video 서비스 로컬 Docker Compose
+# Develop 통합 환경용 docker-compose.app.yml 을 include 합니다.
 
 include:
   - docker-compose.app.yml
@@ -13,15 +11,15 @@ networks:
 services:
   mysql:
     image: mysql:8.4
-    container_name: plip-{service}-mysql
+    container_name: plip-video-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-plip_{service}}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-plip_video}
     ports:
       - "3308:3306"
     volumes:
-      - plip_{service}_mysql_data:/var/lib/mysql
+      - plip_video_mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p$$MYSQL_ROOT_PASSWORD"]
       interval: 5s
@@ -31,15 +29,15 @@ services:
     networks:
       - plip-net
 
-  # 만약 로컬에서 앱을 실행할 때 의존성(Eureka 연동 등)이 필요없다면, 다음 주석을 해제하고 {service} 를 서비스 id 로 변경하세요.
-  # {service}: # 서비스 id 로 변경 (예: user, agit)
-  #   depends_on: !reset # 의존성 리셋
+  # 로컬 Docker로 App까지 실행할 때 주석 해제
+  # video:
+  #   depends_on: !reset
   #     mysql:
-  #       condition: service_healthy # MySQL 상태 확인
+  #       condition: service_healthy
   #   environment:
-  #     EUREKA_CLIENT_ENABLED: "false" # Eureka 연동 비활성화
+  #     EUREKA_CLIENT_ENABLED: "false"
   #   ports:
-  #     - "${SERVER_PORT:-8080}:8080" # 로컬 포트 확인
+  #     - "${SERVER_PORT:-8080}:8080"
 
 volumes:
-  plip_{service}_mysql_data:
+  plip_video_mysql_data:
