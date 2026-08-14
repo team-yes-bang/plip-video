@@ -3,8 +3,7 @@ server:
 
 spring:
   datasource:
-    # Compose 서비스명 `mysql` (호스트 localhost 가 아님)
-    url: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:plip_template}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    url: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:plip_video}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
   jpa:
     hibernate:
       ddl-auto: update
@@ -12,11 +11,14 @@ spring:
 
 eureka:
   instance:
-    # plip-net Compose DNS — Gateway 컨테이너에서 template:8080 으로 접근
-    hostname: template
+    hostname: video
     prefer-ip-address: false
     instance-id: ${spring.application.name}:docker:${server.port}
   client:
     enabled: true
     service-url:
       defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://eureka-server:8761/eureka/}
+
+plip:
+  aws:
+    enabled: ${AWS_ENABLED:true}

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: template # Eureka 등록명 — 소문자·하이픈 (예: agit-service)
+    name: video # Eureka 등록명 — 소문자·하이픈 (예: agit-service)
   profiles:
     active: local
   datasource:
@@ -11,6 +11,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  servlet:
+    multipart:
+      max-file-size: ${VIDEO_MAX_UPLOAD_SIZE:55MB}
+      max-request-size: ${VIDEO_MAX_UPLOAD_SIZE:55MB}
 
 eureka:
   instance:
@@ -21,3 +25,22 @@ eureka:
     enabled: true # 공통(dev 등) 기본 연동. local/docker 프로필에서 false
     register-with-eureka: true
     fetch-registry: true
+
+plip:
+  video:
+    max-duration-seconds: 5
+    allowed-content-types:
+      - video/mp4
+      - video/quicktime
+    max-file-size-bytes: ${VIDEO_MAX_FILE_SIZE_BYTES:52428800}
+  aws:
+    enabled: ${AWS_ENABLED:false}
+    region: ${AWS_REGION:ap-northeast-2}
+    s3:
+      bucket: ${AWS_S3_BUCKET:}
+      raw-video-prefix: videos/raw/
+      processed-video-prefix: videos/processed/
+      image-prefix: images/
+      cdn-base-url: ${AWS_CDN_BASE_URL:}
+    sqs:
+      video-processing-queue-url: ${AWS_SQS_VIDEO_PROCESSING_QUEUE_URL:}

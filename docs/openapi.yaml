@@ -1,15 +1,90 @@
 openapi: 3.1.0
 info:
-  title: OpenAPI definition
-  version: v0
+  title: Video Service API
+  description: 5초 영상·이미지(미디어) 업로드/등록/다운로드 가공 API
+  version: v1.0.0
 servers:
 - url: http://localhost
   description: Generated server url
+tags:
+- name: Health
+  description: 서비스 상태 확인
+- name: Video
+  description: 5초 영상 촬영/업로드 API (스켈레톤 — CRUD 단계에서 재검토)
 paths:
+  /api/videos:
+    post:
+      tags:
+      - Video
+      summary: 영상 업로드
+      description: |
+        영상 파일 업로드 후 DB·S3에 저장하고 videoUuid 를 반환합니다.
+        Agit/Diary 등록은 각 서비스가 반환된 videoUuid 로 처리합니다.
+        - 캡션은 선택 (없으면 null)
+        - recordedAt 은 영상 중앙 HH:mm 오버레이용
+      operationId: register
+      parameters:
+      - name: userUuid
+        in: query
+        description: 업로더 UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: caption
+        in: query
+        description: 캡션 (선택)
+        required: false
+        schema:
+          type: string
+      - name: recordedAt
+        in: query
+        description: 촬영/업로드 시각
+        required: true
+        schema:
+          type: string
+          format: date-time
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                videoFile:
+                  type: string
+                  format: binary
+                  description: 영상 파일 (최대 5초)
+              required:
+              - videoFile
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/VideoRegisterResponse"
+  /api/videos/{videoUuid}/download-processing:
+    post:
+      tags:
+      - Video
+      summary: 다운로드용 영상 가공 요청
+      description: SQS → Lambda(ffmpeg) 파이프라인을 트리거합니다. (스켈레톤)
+      operationId: requestDownloadProcessing
+      parameters:
+      - name: videoUuid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "202":
+          description: Accepted
   /api/test:
     get:
       tags:
-      - test-controller
+      - Health
+      summary: 헬스체크
       operationId: test
       responses:
         "200":
@@ -18,4 +93,31 @@ paths:
             '*/*':
               schema:
                 type: string
-components: {}
+components:
+  schemas:
+    VideoRegisterResponse:
+      type: object
+      description: 영상 등록 응답
+      properties:
+        videoUuid:
+          type: string
+          format: uuid
+          description: 영상 UUID — Agit/Diary 등 타 서비스에서 참조
+        caption:
+          type: string
+          description: 캡션 (없으면 null)
+        recordedAt:
+          type: string
+          format: date-time
+          description: 촬영/업로드 시각 (HH:mm 오버레이용)
+        thumbnailUrl:
+          type: string
+          description: 썸네일 URL
+        processingStatus:
+          type: string
+          description: 다운로드 가공 상태
+          enum:
+          - PENDING
+          - PROCESSING
+          - READY
+          - FAILED
