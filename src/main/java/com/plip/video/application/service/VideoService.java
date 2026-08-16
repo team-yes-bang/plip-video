@@ -8,7 +8,6 @@ import com.plip.video.application.port.out.StoredObject;
 import com.plip.video.application.port.out.VideoPersistencePort;
 import com.plip.video.application.port.out.VideoProcessingQueuePort;
 import com.plip.video.domain.model.Video;
-import com.plip.video.domain.model.enums.VideoProcessingStatus;
 import com.plip.video.global.config.VideoProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,8 +41,6 @@ public class VideoService implements VideoUseCase {
 				.filePath(rawVideo.relativePath())
 				.fileSizeByte(rawVideo.sizeBytes())
 				.thumbnailImagePath(thumbnail.relativePath())
-				.recordedAt(command.recordedAt())
-				.processingStatus(VideoProcessingStatus.PENDING)
 				.build();
 
 		Video saved = videoPersistencePort.save(video);
@@ -52,28 +49,23 @@ public class VideoService implements VideoUseCase {
 		return new VideoRegisterResult(
 				saved.getVideoUuid(),
 				saved.getCaption(),
-				saved.getRecordedAt(),
-				storagePort.resolvePublicUrl(saved.getThumbnailImagePath()),
-				saved.getProcessingStatus()
+				saved.getCreatedAt(),
+				storagePort.resolvePublicUrl(saved.getThumbnailImagePath())
 		);
 	}
 
 	@Override
-	@Transactional
+	@Transactional(readOnly = true)
 	public void requestDownloadProcessing(UUID videoUuid) {
 		Video video = videoPersistencePort.findByVideoUuid(videoUuid)
 				.orElseThrow(() -> new IllegalArgumentException("Video not found: " + videoUuid));
 
-		videoPersistencePort.updateProcessingStatus(videoUuid, VideoProcessingStatus.PROCESSING, null);
 		videoProcessingQueuePort.enqueueForDownloadProcessing(videoUuid, video.getFilePath());
 	}
 
 	private void validateRegistration(VideoRegisterCommand command) {
 		if (command.videoFile() == null || command.videoFile().isEmpty()) {
 			throw new IllegalArgumentException("Video file is required");
-		}
-		if (command.recordedAt() == null) {
-			throw new IllegalArgumentException("Recorded time is required");
 		}
 		if (command.videoFile().getSize() > videoProperties.maxFileSizeBytes()) {
 			throw new IllegalArgumentException("Video file exceeds max size");

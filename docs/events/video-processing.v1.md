@@ -10,7 +10,7 @@ video service
   → SQS (video-processing queue)
   → Lambda (ffmpeg transcode/watermark if needed)
   → S3 (processed video bucket/prefix)
-  → video service DB update (processing_status=READY, processed_file_path)
+  → video service DB update (processed_path)
 ```
 
 ## Message body (v1)
@@ -34,8 +34,7 @@ video service
 
 | column | value |
 | --- | --- |
-| `processing_status` | `READY` |
-| `processed_file_path` | relative S3 path |
+| `processed_path` | relative S3 path (다운로드용 가공본) |
 
 ## Related requirements mapping
 
@@ -47,4 +46,4 @@ video service
 ## Open questions
 
 - Lambda 완료 후 video DB 갱신 방식: REST callback vs Kafka event vs 직접 DB (MSA 원칙상 callback/event 권장)
-- ffmpeg 워터마크(캡션·HH:mm)를 서버에서 할지, 클라이언트 촬영 시 이미 합성할지
+- ffmpeg 워터마크(캡션·HH:mm)를 서버에서 할지, 클라이언트 첨부 시 이미 합성할지 — HH:mm 기준 시각은 `created_at`(업로드 시각)
