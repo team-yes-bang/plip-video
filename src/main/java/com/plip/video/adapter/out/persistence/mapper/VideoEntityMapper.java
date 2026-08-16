@@ -16,11 +16,9 @@ public class VideoEntityMapper {
 				.userUuid(entity.getUserUuid())
 				.caption(entity.getCaption())
 				.filePath(entity.getFilePath())
+				.processedPath(entity.getProcessedPath())
 				.fileSizeByte(entity.getFileSizeByte())
 				.thumbnailImagePath(entity.getThumbnailImagePath())
-				.recordedAt(entity.getRecordedAt())
-				.processingStatus(entity.getProcessingStatus())
-				.processedFilePath(entity.getProcessedFilePath())
 				.createdAt(entity.getCreatedAt())
 				.updatedAt(entity.getUpdatedAt())
 				.deletedAt(entity.getDeletedAt())
@@ -49,9 +47,6 @@ public class VideoEntityMapper {
 				.filePath(video.getFilePath())
 				.fileSizeByte(video.getFileSizeByte())
 				.thumbnailImagePath(video.getThumbnailImagePath())
-				.recordedAt(video.getRecordedAt())
-				.processingStatus(video.getProcessingStatus())
-				.processedFilePath(video.getProcessedFilePath())
 				.build();
 	}
 }
