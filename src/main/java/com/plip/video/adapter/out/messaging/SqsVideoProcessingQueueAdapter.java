@@ -55,9 +55,4 @@ public class SqsVideoProcessingQueueAdapter implements VideoProcessingQueuePort 
 			throw new IllegalStateException("Failed to serialize SQS message", e);
 		}
 	}
-
-	@Override
-	public void enqueueForDownloadProcessing(UUID videoUuid, String rawVideoPath) {
-		enqueueVideoProcessing(videoUuid, rawVideoPath, null, null);
-	}
 }

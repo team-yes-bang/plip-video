@@ -3,8 +3,7 @@ package com.plip.video.application.port.in;
 import com.plip.video.application.port.in.dto.VideoCompleteCommand;
 import com.plip.video.application.port.in.dto.VideoCompleteResult;
 import com.plip.video.application.port.in.dto.VideoDetailResult;
-import com.plip.video.application.port.in.dto.VideoRegisterCommand;
-import com.plip.video.application.port.in.dto.VideoRegisterResult;
+import com.plip.video.application.port.in.dto.VideoDownloadUrlResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
 import com.plip.video.application.port.in.dto.VideoUploadUrlResult;
 
@@ -18,11 +17,9 @@ public interface VideoUseCase {
 
 	VideoDetailResult getVideo(UUID videoUuid);
 
+	VideoDownloadUrlResult getDownloadUrl(UUID videoUuid);
+
 	void updateThumbnail(UUID videoUuid, String thumbnailS3Key);
 
 	void updateProcessed(UUID videoUuid, String processedS3Key);
-
-	VideoRegisterResult register(VideoRegisterCommand command);
-
-	void requestDownloadProcessing(UUID videoUuid);
 }

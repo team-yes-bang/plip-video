@@ -102,22 +102,3 @@ tasks.register('installGitHooks', Copy) {
 tasks.named('compileJava') {
 	dependsOn 'installGitHooks'
 }
-
-// bootRun 시 프로젝트 루트 .env 를 환경변수로 주입 (Spring Boot는 .env 자동 로드 안 함)
-tasks.named('bootRun') {
-	def dotEnv = layout.projectDirectory.file('.env').asFile
-	if (dotEnv.exists()) {
-		dotEnv.readLines().each { line ->
-			def trimmed = line.trim()
-			if (trimmed.isEmpty() || trimmed.startsWith('#')) {
-				return
-			}
-			def separatorIndex = trimmed.indexOf('=')
-			if (separatorIndex > 0) {
-				def key = trimmed.substring(0, separatorIndex).trim()
-				def value = trimmed.substring(separatorIndex + 1).trim()
-				environment key, value
-			}
-		}
-	}
-}

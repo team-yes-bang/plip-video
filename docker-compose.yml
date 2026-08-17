@@ -39,5 +39,10 @@ services:
   #   ports:
   #     - "${SERVER_PORT:-8080}:8080"
 
+  # app.yml의 video는 Develop PC(Eureka 포함)용 — 로컬 기본 up 에서는 제외
+  video:
+    profiles:
+      - docker-app
+
 volumes:
   plip_video_mysql_data:

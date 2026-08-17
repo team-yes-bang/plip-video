@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
@@ -23,20 +22,6 @@ public class NoOpStorageAdapter implements StoragePort {
 	private static final long STUB_OBJECT_SIZE_BYTES = 1024L;
 
 	private final AwsProperties awsProperties;
-
-	@Override
-	public StoredObject uploadRawVideo(UUID videoUuid, InputStream content, long contentLength, String contentType) {
-		String relativePath = buildRawS3Key(videoUuid);
-		log.warn("AWS disabled — stub upload for raw video: {}", relativePath);
-		return new StoredObject(relativePath, contentLength);
-	}
-
-	@Override
-	public StoredObject uploadThumbnail(UUID videoUuid, InputStream content, long contentLength, String contentType) {
-		String relativePath = awsProperties.s3().imagePrefix() + "thumbnails/" + videoUuid + ".jpg";
-		log.warn("AWS disabled — stub upload for thumbnail: {}", relativePath);
-		return new StoredObject(relativePath, contentLength);
-	}
 
 	@Override
 	public String buildRawS3Key(UUID videoUuid) {

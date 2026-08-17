@@ -1,6 +1,8 @@
 package com.plip.video.application.service;
 
 import com.plip.video.application.port.in.dto.VideoCompleteCommand;
+import com.plip.video.application.port.in.dto.VideoDownloadUrlProcessing;
+import com.plip.video.application.port.in.dto.VideoDownloadUrlReady;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
 import com.plip.video.application.port.out.PresignedUploadUrl;
 import com.plip.video.application.port.out.StoragePort;
@@ -229,6 +231,64 @@ class VideoServiceTest {
 		given(videoPersistencePort.updateThumbnailPath(eq(videoUuid), any())).willReturn(Optional.empty());
 
 		assertThatThrownBy(() -> videoService.updateThumbnail(videoUuid, "images/thumbnails/x.jpg"))
+				.isInstanceOf(ResponseStatusException.class)
+				.hasMessageContaining("Video not found");
+	}
+
+	@Test
+	void getDownloadUrlReturnsProcessingWhenNotReady() {
+		UUID videoUuid = UUID.fromString("01954444-bbbb-7444-4444-444444444444");
+
+		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.of(
+				Video.builder()
+						.videoUuid(videoUuid)
+						.userUuid(userUuid)
+						.filePath("videos/raw/" + videoUuid + ".mp4")
+						.fileSizeByte(2048L)
+						.createdAt(LocalDateTime.of(2026, 8, 17, 3, 30, 0))
+						.build()
+		));
+
+		var result = videoService.getDownloadUrl(videoUuid);
+
+		assertThat(result).isInstanceOf(VideoDownloadUrlProcessing.class);
+		var processing = (VideoDownloadUrlProcessing) result;
+		assertThat(processing.videoUuid()).isEqualTo(videoUuid);
+		assertThat(processing.retryAfterSeconds()).isEqualTo(3);
+		assertThat(processing.message()).isEqualTo("다운로드용 영상 가공 중입니다.");
+	}
+
+	@Test
+	void getDownloadUrlReturnsCloudFrontUrlWhenReady() {
+		UUID videoUuid = UUID.fromString("01955555-bbbb-7555-5555-555555555555");
+		String processedPath = "videos/processed/" + videoUuid + ".mp4";
+
+		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.of(
+				Video.builder()
+						.videoUuid(videoUuid)
+						.userUuid(userUuid)
+						.filePath("videos/raw/" + videoUuid + ".mp4")
+						.processedPath(processedPath)
+						.fileSizeByte(4096L)
+						.createdAt(LocalDateTime.of(2026, 8, 17, 3, 30, 0))
+						.build()
+		));
+		given(storagePort.resolvePublicUrl(processedPath)).willReturn("https://cdn.example/" + processedPath);
+
+		var result = videoService.getDownloadUrl(videoUuid);
+
+		assertThat(result).isInstanceOf(VideoDownloadUrlReady.class);
+		var ready = (VideoDownloadUrlReady) result;
+		assertThat(ready.videoUuid()).isEqualTo(videoUuid);
+		assertThat(ready.downloadUrl()).contains("cdn.example");
+	}
+
+	@Test
+	void getDownloadUrlThrowsNotFoundWhenMissing() {
+		UUID videoUuid = UUID.fromString("01956666-bbbb-7666-6666-666666666666");
+		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> videoService.getDownloadUrl(videoUuid))
 				.isInstanceOf(ResponseStatusException.class)
 				.hasMessageContaining("Video not found");
 	}
