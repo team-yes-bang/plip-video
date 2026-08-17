@@ -18,6 +18,10 @@ public interface VideoUseCase {
 
 	VideoDetailResult getVideo(UUID videoUuid);
 
+	void updateThumbnail(UUID videoUuid, String thumbnailS3Key);
+
+	void updateProcessed(UUID videoUuid, String processedS3Key);
+
 	VideoRegisterResult register(VideoRegisterCommand command);
 
 	void requestDownloadProcessing(UUID videoUuid);
