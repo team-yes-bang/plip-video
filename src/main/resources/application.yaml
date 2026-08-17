@@ -22,7 +22,7 @@ eureka:
     lease-renewal-interval-in-seconds: 5
     lease-expiration-duration-in-seconds: 10
   client:
-    enabled: true # 공통(dev 등) 기본 연동. local/docker 프로필에서 false
+    enabled: true # 공통(dev 등) 기본 연동. local/docker/prod 프로필에서 override
     register-with-eureka: true
     fetch-registry: true
 
@@ -33,14 +33,20 @@ plip:
       - video/mp4
       - video/quicktime
     max-file-size-bytes: ${VIDEO_MAX_FILE_SIZE_BYTES:52428800}
+  internal:
+    api-key: ${INTERNAL_API_KEY:}
   aws:
     enabled: ${AWS_ENABLED:false}
     region: ${AWS_REGION:ap-northeast-2}
+    presigned-url-ttl-seconds: ${AWS_PRESIGNED_URL_TTL_SECONDS:10800}
     s3:
-      bucket: ${AWS_S3_BUCKET:}
+      raw-bucket: ${AWS_S3_RAW_BUCKET:}
+      processed-bucket: ${AWS_S3_PROCESSED_BUCKET:}
       raw-video-prefix: videos/raw/
       processed-video-prefix: videos/processed/
       image-prefix: images/
       cdn-base-url: ${AWS_CDN_BASE_URL:}
     sqs:
       video-processing-queue-url: ${AWS_SQS_VIDEO_PROCESSING_QUEUE_URL:}
+    lambda:
+      thumbnail-function-arn: ${AWS_LAMBDA_THUMBNAIL_ARN:}

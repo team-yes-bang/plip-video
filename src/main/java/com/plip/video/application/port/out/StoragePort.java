@@ -9,5 +9,11 @@ public interface StoragePort {
 
 	StoredObject uploadThumbnail(UUID videoUuid, InputStream content, long contentLength, String contentType);
 
+	String buildRawS3Key(UUID videoUuid);
+
+	PresignedUploadUrl createPresignedPutUrl(UUID videoUuid, String contentType);
+
+	StoredObject headRawObject(String rawS3Key);
+
 	String resolvePublicUrl(String relativePath);
 }
