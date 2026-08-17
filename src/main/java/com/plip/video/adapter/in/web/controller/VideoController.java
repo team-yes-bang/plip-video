@@ -1,9 +1,16 @@
 package com.plip.video.adapter.in.web.controller;
 
+import com.plip.video.adapter.in.web.dto.VideoCompleteRequest;
+import com.plip.video.adapter.in.web.dto.VideoCompleteResponse;
 import com.plip.video.adapter.in.web.dto.VideoRegisterResponse;
+import com.plip.video.adapter.in.web.dto.VideoUploadUrlResponse;
 import com.plip.video.application.port.in.VideoUseCase;
+import com.plip.video.application.port.in.dto.VideoCompleteCommand;
+import com.plip.video.application.port.in.dto.VideoCompleteResult;
 import com.plip.video.application.port.in.dto.VideoRegisterCommand;
 import com.plip.video.application.port.in.dto.VideoRegisterResult;
+import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
+import com.plip.video.application.port.in.dto.VideoUploadUrlResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -20,7 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
-@Tag(name = "Video", description = "5초 영상 촬영/업로드 API (스켈레톤 — CRUD 단계에서 재검토)")
+@Tag(name = "Video", description = "5초 영상 Presigned 업로드 API")
 @RestController
 @RequestMapping("/api/videos")
 @RequiredArgsConstructor
@@ -28,12 +36,50 @@ public class VideoController {
 
 	private final VideoUseCase videoUseCase;
 
-	@Operation(summary = "영상 업로드", description = """
-			영상 파일 업로드 후 DB·S3에 저장하고 videoUuid 를 반환합니다.
-			Agit/Diary 등록은 각 서비스가 반환된 videoUuid 로 처리합니다.
-			- 캡션은 선택 (없으면 null)
-			- HH:mm 오버레이는 created_at(업로드 시각) 기준
+	@Operation(summary = "Presigned upload URL 발급", description = """
+			영상 UUID와 S3 Presigned PUT URL을 발급합니다.
+			- DB INSERT 없음 (complete에서 저장)
+			- rawS3Key = videos/raw/{videoUuid}.mp4
 			""")
+	@PostMapping("/upload-url")
+	@ResponseStatus(HttpStatus.CREATED)
+	public VideoUploadUrlResponse issueUploadUrl(
+			@Parameter(description = "업로더 UUID") @RequestParam UUID userUuid,
+			@Parameter(description = "Content-Type (선택, 기본 video/mp4)") @RequestParam(required = false) String contentType
+	) {
+		VideoUploadUrlResult result = videoUseCase.issueUploadUrl(new VideoUploadUrlCommand(userUuid, contentType));
+		return new VideoUploadUrlResponse(
+				result.videoUuid(),
+				result.rawS3Key(),
+				result.uploadUrl(),
+				result.expiresAt()
+		);
+	}
+
+	@Operation(summary = "영상 업로드 complete", description = """
+			S3 업로드 완료 후 메타데이터를 DB에 저장합니다.
+			- HeadObject로 raw 파일 존재·용량 검증
+			- thumbnail_image_path = null (Lambda callback 대기)
+			- overlayTime = created_at KST HH:mm
+			""")
+	@PostMapping("/{videoUuid}/complete")
+	@ResponseStatus(HttpStatus.CREATED)
+	public VideoCompleteResponse complete(
+			@Parameter(description = "upload-url에서 발급된 video UUID") @PathVariable UUID videoUuid,
+			@Parameter(description = "업로더 UUID") @RequestParam UUID userUuid,
+			@RequestBody(required = false) VideoCompleteRequest request
+	) {
+		String caption = request != null ? request.caption() : null;
+		VideoCompleteResult result = videoUseCase.complete(new VideoCompleteCommand(videoUuid, userUuid, caption));
+		return new VideoCompleteResponse(
+				result.videoUuid(),
+				result.caption(),
+				result.createdAt(),
+				result.overlayTime()
+		);
+	}
+
+	@Operation(summary = "[레거시] multipart 영상 업로드", description = "PR-6에서 제거 예정. upload-url + complete 사용 권장.")
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)
 	public VideoRegisterResponse register(
@@ -55,7 +101,7 @@ public class VideoController {
 		);
 	}
 
-	@Operation(summary = "다운로드용 영상 가공 요청", description = "SQS → Lambda(ffmpeg) 파이프라인을 트리거합니다. (스켈레톤)")
+	@Operation(summary = "[레거시] 다운로드용 영상 가공 요청", description = "PR-6에서 제거 예정. complete 시 자동 enqueue.")
 	@PostMapping("/{videoUuid}/download-processing")
 	@ResponseStatus(HttpStatus.ACCEPTED)
 	public void requestDownloadProcessing(@PathVariable UUID videoUuid) {

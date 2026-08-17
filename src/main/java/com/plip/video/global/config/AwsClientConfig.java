@@ -4,7 +4,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
 @Configuration
@@ -19,8 +21,22 @@ public class AwsClientConfig {
 	}
 
 	@Bean
+	public S3Presigner s3Presigner(AwsProperties awsProperties) {
+		return S3Presigner.builder()
+				.region(Region.of(awsProperties.region()))
+				.build();
+	}
+
+	@Bean
 	public SqsClient sqsClient(AwsProperties awsProperties) {
 		return SqsClient.builder()
+				.region(Region.of(awsProperties.region()))
+				.build();
+	}
+
+	@Bean
+	public LambdaClient lambdaClient(AwsProperties awsProperties) {
+		return LambdaClient.builder()
 				.region(Region.of(awsProperties.region()))
 				.build();
 	}
