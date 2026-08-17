@@ -22,4 +22,4 @@ plip:
   internal:
     api-key: ${INTERNAL_API_KEY:local-dev-internal-key}
   aws:
-    enabled: false
+    enabled: ${AWS_ENABLED:false}

@@ -24,3 +24,13 @@ plip:
     api-key: ${INTERNAL_API_KEY:}
   aws:
     enabled: ${AWS_ENABLED:true}
+    region: ${AWS_REGION:ap-northeast-2}
+    presigned-url-ttl-seconds: ${AWS_PRESIGNED_URL_TTL_SECONDS:10800}
+    s3:
+      raw-bucket: ${AWS_S3_RAW_BUCKET:}
+      processed-bucket: ${AWS_S3_PROCESSED_BUCKET:}
+      cdn-base-url: ${AWS_CDN_BASE_URL:}
+    sqs:
+      video-processing-queue-url: ${AWS_SQS_VIDEO_PROCESSING_QUEUE_URL:}
+    lambda:
+      thumbnail-function-arn: ${AWS_LAMBDA_THUMBNAIL_ARN:}
