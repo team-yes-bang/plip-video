@@ -30,4 +30,22 @@ public class VideoPersistenceAdapter implements VideoPersistencePort {
 		return videoJpaRepository.findByVideoUuidAndDeletedAtIsNull(videoUuid)
 				.map(videoEntityMapper::toDomain);
 	}
+
+	@Override
+	public Optional<Video> updateThumbnailPath(UUID videoUuid, String thumbnailImagePath) {
+		return videoJpaRepository.findByVideoUuidAndDeletedAtIsNull(videoUuid)
+				.map(entity -> {
+					entity.updateThumbnailImagePath(thumbnailImagePath);
+					return videoEntityMapper.toDomain(entity);
+				});
+	}
+
+	@Override
+	public Optional<Video> updateProcessedPath(UUID videoUuid, String processedPath) {
+		return videoJpaRepository.findByVideoUuidAndDeletedAtIsNull(videoUuid)
+				.map(entity -> {
+					entity.updateProcessedPath(processedPath);
+					return videoEntityMapper.toDomain(entity);
+				});
+	}
 }

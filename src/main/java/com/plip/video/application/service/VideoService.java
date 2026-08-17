@@ -111,6 +111,22 @@ public class VideoService implements VideoUseCase {
 
 	@Override
 	@Transactional
+	public void updateThumbnail(UUID videoUuid, String thumbnailS3Key) {
+		String normalizedPath = normalizeRelativePath(thumbnailS3Key, "thumbnailS3Key");
+		videoPersistencePort.updateThumbnailPath(videoUuid, normalizedPath)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Video not found: " + videoUuid));
+	}
+
+	@Override
+	@Transactional
+	public void updateProcessed(UUID videoUuid, String processedS3Key) {
+		String normalizedPath = normalizeRelativePath(processedS3Key, "processedS3Key");
+		videoPersistencePort.updateProcessedPath(videoUuid, normalizedPath)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Video not found: " + videoUuid));
+	}
+
+	@Override
+	@Transactional
 	public VideoRegisterResult register(VideoRegisterCommand command) {
 		validateRegistration(command);
 
@@ -216,5 +232,16 @@ public class VideoService implements VideoUseCase {
 			return null;
 		}
 		return caption.trim();
+	}
+
+	private String normalizeRelativePath(String path, String fieldName) {
+		if (path == null || path.isBlank()) {
+			throw new IllegalArgumentException(fieldName + " is required");
+		}
+		String normalized = path.trim();
+		if (normalized.startsWith("s3://") || normalized.startsWith("/")) {
+			throw new IllegalArgumentException(fieldName + " must be a relative S3 path");
+		}
+		return normalized;
 	}
 }

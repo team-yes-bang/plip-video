@@ -81,4 +81,12 @@ public class VideoEntity {
 	public void softDelete() {
 		this.deletedAt = LocalDateTime.now();
 	}
+
+	public void updateThumbnailImagePath(String thumbnailImagePath) {
+		this.thumbnailImagePath = thumbnailImagePath;
+	}
+
+	public void updateProcessedPath(String processedPath) {
+		this.processedPath = processedPath;
+	}
 }

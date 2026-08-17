@@ -194,4 +194,42 @@ class VideoServiceTest {
 				.isInstanceOf(ResponseStatusException.class)
 				.hasMessageContaining("Video not found");
 	}
+
+	@Test
+	void updateThumbnailUpdatesPath() {
+		UUID videoUuid = UUID.fromString("01951111-bbbb-7111-1111-111111111111");
+		String thumbnailPath = "images/thumbnails/" + videoUuid + ".jpg";
+
+		given(videoPersistencePort.updateThumbnailPath(videoUuid, thumbnailPath)).willReturn(Optional.of(
+				Video.builder().videoUuid(videoUuid).thumbnailImagePath(thumbnailPath).build()
+		));
+
+		videoService.updateThumbnail(videoUuid, thumbnailPath);
+
+		verify(videoPersistencePort).updateThumbnailPath(videoUuid, thumbnailPath);
+	}
+
+	@Test
+	void updateProcessedUpdatesPath() {
+		UUID videoUuid = UUID.fromString("01952222-bbbb-7222-2222-222222222222");
+		String processedPath = "videos/processed/" + videoUuid + ".mp4";
+
+		given(videoPersistencePort.updateProcessedPath(videoUuid, processedPath)).willReturn(Optional.of(
+				Video.builder().videoUuid(videoUuid).processedPath(processedPath).build()
+		));
+
+		videoService.updateProcessed(videoUuid, processedPath);
+
+		verify(videoPersistencePort).updateProcessedPath(videoUuid, processedPath);
+	}
+
+	@Test
+	void updateThumbnailThrowsNotFoundWhenMissing() {
+		UUID videoUuid = UUID.fromString("01953333-bbbb-7333-3333-333333333333");
+		given(videoPersistencePort.updateThumbnailPath(eq(videoUuid), any())).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> videoService.updateThumbnail(videoUuid, "images/thumbnails/x.jpg"))
+				.isInstanceOf(ResponseStatusException.class)
+				.hasMessageContaining("Video not found");
+	}
 }

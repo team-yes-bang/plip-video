@@ -10,4 +10,8 @@ public interface VideoPersistencePort {
 	Video save(Video video);
 
 	Optional<Video> findByVideoUuid(UUID videoUuid);
+
+	Optional<Video> updateThumbnailPath(UUID videoUuid, String thumbnailImagePath);
+
+	Optional<Video> updateProcessedPath(UUID videoUuid, String processedPath);
 }
