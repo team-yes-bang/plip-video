@@ -2,6 +2,7 @@ package com.plip.video.application.port.in;
 
 import com.plip.video.application.port.in.dto.VideoCompleteCommand;
 import com.plip.video.application.port.in.dto.VideoCompleteResult;
+import com.plip.video.application.port.in.dto.VideoDetailResult;
 import com.plip.video.application.port.in.dto.VideoRegisterCommand;
 import com.plip.video.application.port.in.dto.VideoRegisterResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
@@ -14,6 +15,8 @@ public interface VideoUseCase {
 	VideoUploadUrlResult issueUploadUrl(VideoUploadUrlCommand command);
 
 	VideoCompleteResult complete(VideoCompleteCommand command);
+
+	VideoDetailResult getVideo(UUID videoUuid);
 
 	VideoRegisterResult register(VideoRegisterCommand command);
 

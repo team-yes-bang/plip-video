@@ -10,10 +10,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.InputStream;
@@ -82,6 +84,22 @@ public class S3StorageAdapter implements StoragePort {
 		} catch (NoSuchKeyException e) {
 			throw new IllegalArgumentException("Raw video not found in S3: " + rawS3Key, e);
 		}
+	}
+
+	@Override
+	public String createPresignedRawPlaybackUrl(String rawS3Key) {
+		Duration ttl = Duration.ofSeconds(awsProperties.presignedUrlTtlSeconds());
+		GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+				.bucket(awsProperties.s3().rawBucket())
+				.key(rawS3Key)
+				.build();
+
+		GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+				.signatureDuration(ttl)
+				.getObjectRequest(getObjectRequest)
+				.build();
+
+		return s3Presigner.presignGetObject(presignRequest).url().toString();
 	}
 
 	@Override

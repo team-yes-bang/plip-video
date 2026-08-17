@@ -8,7 +8,7 @@ servers:
   description: Generated server url
 tags:
 - name: Video
-  description: 5초 영상 Presigned 업로드 API
+  description: 5초 영상 Presigned 업로드·조회 API
 - name: Health
   description: 서비스 상태 확인
 paths:
@@ -138,6 +138,33 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/VideoUploadUrlResponse"
+  /api/videos/{videoUuid}:
+    get:
+      tags:
+      - Video
+      summary: 영상 상세 조회
+      description: |
+        피드 재생용 영상 메타데이터와 raw Presigned GET URL을 반환합니다.
+        - rawPlaybackUrl: raw bucket Presigned GET (TTL 3h)
+        - thumbnailUrl: Lambda callback 전 null
+        - overlayTime: created_at KST HH:mm (프론트 UI 오버레이)
+        - downloadReady: processed_path 존재 여부
+      operationId: getVideo
+      parameters:
+      - name: videoUuid
+        in: path
+        description: 영상 UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/VideoDetailResponse"
   /api/test:
     get:
       tags:
@@ -214,3 +241,34 @@ components:
           type: string
           format: date-time
           description: Presigned URL 만료 시각 (UTC)
+    VideoDetailResponse:
+      type: object
+      description: 영상 상세 조회 응답 (피드 재생용)
+      properties:
+        videoUuid:
+          type: string
+          format: uuid
+          description: 영상 UUID
+        userUuid:
+          type: string
+          format: uuid
+          description: 업로더 UUID
+        caption:
+          type: string
+          description: 캡션 (없으면 null)
+        createdAt:
+          type: string
+          format: date-time
+          description: 업로드 시각 (created_at)
+        rawPlaybackUrl:
+          type: string
+          description: 원본(raw) 영상 Presigned GET URL (TTL 3h)
+        thumbnailUrl:
+          type: string
+          description: 썸네일 URL (Lambda callback 전 null)
+        overlayTime:
+          type: string
+          description: "HH:mm 오버레이용 시각 (KST, created_at 기준)"
+        downloadReady:
+          type: boolean
+          description: 다운로드용 가공본 준비 여부 (processed_path 존재)

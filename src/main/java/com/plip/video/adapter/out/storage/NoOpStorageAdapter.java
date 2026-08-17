@@ -59,6 +59,13 @@ public class NoOpStorageAdapter implements StoragePort {
 	}
 
 	@Override
+	public String createPresignedRawPlaybackUrl(String rawS3Key) {
+		String playbackUrl = "http://localhost/stub-presigned-get/" + rawS3Key;
+		log.warn("AWS disabled — stub presigned GET URL for {}", rawS3Key);
+		return playbackUrl;
+	}
+
+	@Override
 	public String resolvePublicUrl(String relativePath) {
 		if (relativePath == null || relativePath.isBlank()) {
 			return null;
