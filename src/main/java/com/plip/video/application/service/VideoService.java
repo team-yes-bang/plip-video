@@ -9,6 +9,7 @@ import com.plip.video.application.port.out.VideoPersistencePort;
 import com.plip.video.application.port.out.VideoProcessingQueuePort;
 import com.plip.video.domain.model.Video;
 import com.plip.video.global.config.VideoProperties;
+import com.plip.video.global.util.VideoUuidGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +31,7 @@ public class VideoService implements VideoUseCase {
 	public VideoRegisterResult register(VideoRegisterCommand command) {
 		validateRegistration(command);
 
-		UUID videoUuid = UUID.randomUUID();
+		UUID videoUuid = VideoUuidGenerator.generate();
 		StoredObject rawVideo = uploadRawVideo(videoUuid, command);
 		StoredObject thumbnail = uploadThumbnailPlaceholder(videoUuid, command);
 

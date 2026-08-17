@@ -31,6 +31,7 @@ dependencies {
 	implementation platform('software.amazon.awssdk:bom:2.31.30')
 	implementation 'software.amazon.awssdk:s3'
 	implementation 'software.amazon.awssdk:sqs'
+	implementation 'com.github.f4b6a3:uuid-creator:6.1.1'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'

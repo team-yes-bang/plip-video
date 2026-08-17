@@ -5,12 +5,11 @@
 ## Flow
 
 ```text
-video service
-  → S3 (raw video + thumbnail image, relative path)
+plip-video (POST /complete)
   → SQS (video-processing queue)
-  → Lambda (ffmpeg transcode/watermark if needed)
-  → S3 (processed video bucket/prefix)
-  → video service DB update (processed_path)
+  → Lambda (ffmpeg burn-in: overlayTime, caption)
+  → S3 (processed bucket)
+  → plip-video REST callback (processed_path 갱신)
 ```
 
 ## Message body (v1)
@@ -18,17 +17,25 @@ video service
 ```json
 {
   "videoUuid": "0195xxxx-xxxx-7xxx-xxxx-xxxxxxxxxxxx",
-  "rawVideoPath": "videos/raw/{videoUuid}.mp4"
+  "rawS3Key": "videos/raw/{videoUuid}.mp4",
+  "caption": "optional",
+  "overlayTime": "20:07"
 }
 ```
 
-## Lambda responsibilities (인프라/별도 repo)
+| field | description |
+| --- | --- |
+| `rawS3Key` | S3(A) raw **상대 경로** (`file_path`와 동일) |
+| `caption` | 선택. 없으면 생략 또는 null |
+| `overlayTime` | `created_at` KST `HH:mm` — burn-in drawtext용 |
+
+## Lambda responsibilities (인프ra/별도 repo)
 
 1. SQS 메시지 수신
 2. S3 raw 경로에서 원본 다운로드
-3. ffmpeg로 다운로드용 포맷/품질 가공 (필요 시 워터마크·메타데이터)
-4. `videos/processed/{videoUuid}.mp4` 등 **상대 경로**로 S3 업로드
-5. video service callback API 또는 DB 직접 갱신 **(팀 협의 필요 — 아래 FAQ 참고)**
+3. ffmpeg로 burn-in 가공 (overlayTime, caption)
+4. `videos/processed/{videoUuid}.mp4` **상대 경로**로 S3(B) 업로드
+5. plip-video internal REST callback으로 `processed_path` 갱신
 
 ## DB fields updated on success
 
@@ -40,10 +47,11 @@ video service
 
 | # | requirement | handled by |
 | --- | --- | --- |
-| 7 | 첫 프레임 S3 img + 영상 S3 저장 | video service upload |
+| 7 | 첫 프레임 S3 img + 영상 S3 저장 | thumbnail pipeline (별도) |
 | 8 | S3 → SQS → Lambda → S3 가공 | this pipeline |
 
-## Open questions
+## Resolved decisions
 
-- Lambda 완료 후 video DB 갱신 방식: REST callback vs Kafka event vs 직접 DB (MSA 원칙상 callback/event 권장)
-- ffmpeg 워터마크(캡션·HH:mm)를 서버에서 할지, 클라이언트 첨부 시 이미 합성할지 — HH:mm 기준 시각은 `created_at`(업로드 시각)
+- SQS publish: **plip-video `complete` 후** (S3 Event 아님)
+- DB 갱신: **REST internal callback** (Kafka/직접 DB 아님)
+- HH:mm 기준: **`created_at`(업로드 시각)**, `recordedAt` 없음

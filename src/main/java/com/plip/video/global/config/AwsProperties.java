@@ -6,12 +6,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record AwsProperties(
 		boolean enabled,
 		String region,
+		int presignedUrlTtlSeconds,
 		S3Properties s3,
-		SqsProperties sqs
+		SqsProperties sqs,
+		LambdaProperties lambda
 ) {
 
 	public record S3Properties(
-			String bucket,
+			String rawBucket,
+			String processedBucket,
 			String rawVideoPrefix,
 			String processedVideoPrefix,
 			String imagePrefix,
@@ -21,6 +24,11 @@ public record AwsProperties(
 
 	public record SqsProperties(
 			String videoProcessingQueueUrl
+	) {
+	}
+
+	public record LambdaProperties(
+			String thumbnailFunctionArn
 	) {
 	}
 }

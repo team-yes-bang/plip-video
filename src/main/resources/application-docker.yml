@@ -20,5 +20,7 @@ eureka:
       defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://eureka-server:8761/eureka/}
 
 plip:
+  internal:
+    api-key: ${INTERNAL_API_KEY:}
   aws:
     enabled: ${AWS_ENABLED:true}

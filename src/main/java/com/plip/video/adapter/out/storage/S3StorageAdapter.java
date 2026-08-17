@@ -50,12 +50,12 @@ public class S3StorageAdapter implements StoragePort {
 
 	private void upload(String relativePath, InputStream content, long contentLength, String contentType) {
 		PutObjectRequest request = PutObjectRequest.builder()
-				.bucket(awsProperties.s3().bucket())
+				.bucket(awsProperties.s3().rawBucket())
 				.key(relativePath)
 				.contentType(contentType)
 				.build();
 
 		s3Client.putObject(request, RequestBody.fromInputStream(content, contentLength));
-		log.info("Uploaded object to s3://{}/{}", awsProperties.s3().bucket(), relativePath);
+		log.info("Uploaded object to s3://{}/{}", awsProperties.s3().rawBucket(), relativePath);
 	}
 }

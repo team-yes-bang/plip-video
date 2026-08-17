@@ -1,0 +1,29 @@
+# K3s prod — 구조 SSOT. 실제 값은 ConfigMap/Secret env 로 주입.
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+eureka:
+  client:
+    enabled: false
+
+plip:
+  internal:
+    api-key: ${INTERNAL_API_KEY}
+  aws:
+    enabled: true
+    region: ${AWS_REGION}
+    presigned-url-ttl-seconds: ${AWS_PRESIGNED_URL_TTL_SECONDS:10800}
+    s3:
+      raw-bucket: ${AWS_S3_RAW_BUCKET}
+      processed-bucket: ${AWS_S3_PROCESSED_BUCKET}
+      cdn-base-url: ${AWS_CDN_BASE_URL}
+    sqs:
+      video-processing-queue-url: ${AWS_SQS_VIDEO_PROCESSING_QUEUE_URL}
+    lambda:
+      thumbnail-function-arn: ${AWS_LAMBDA_THUMBNAIL_ARN}
