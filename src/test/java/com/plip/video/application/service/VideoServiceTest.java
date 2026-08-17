@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -127,5 +128,70 @@ class VideoServiceTest {
 		assertThatThrownBy(() -> videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, null)))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("already completed");
+	}
+
+	@Test
+	void getVideoReturnsFeedDetail() {
+		UUID videoUuid = UUID.fromString("0195dddd-bbbb-7ddd-dddd-dddddddddddd");
+		String rawS3Key = "videos/raw/" + videoUuid + ".mp4";
+		String thumbnailPath = "images/thumbnails/" + videoUuid + ".jpg";
+
+		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.of(
+				Video.builder()
+						.videoUuid(videoUuid)
+						.userUuid(userUuid)
+						.caption("feed caption")
+						.filePath(rawS3Key)
+						.processedPath("videos/processed/" + videoUuid + ".mp4")
+						.fileSizeByte(4096L)
+						.thumbnailImagePath(thumbnailPath)
+						.createdAt(LocalDateTime.of(2026, 8, 17, 3, 30, 0))
+						.build()
+		));
+		given(storagePort.createPresignedRawPlaybackUrl(rawS3Key)).willReturn("https://example/playback");
+		given(storagePort.resolvePublicUrl(thumbnailPath)).willReturn("https://cdn.example/" + thumbnailPath);
+
+		var result = videoService.getVideo(videoUuid);
+
+		assertThat(result.videoUuid()).isEqualTo(videoUuid);
+		assertThat(result.userUuid()).isEqualTo(userUuid);
+		assertThat(result.caption()).isEqualTo("feed caption");
+		assertThat(result.rawPlaybackUrl()).isEqualTo("https://example/playback");
+		assertThat(result.thumbnailUrl()).contains("cdn.example");
+		assertThat(result.overlayTime()).isEqualTo("12:30");
+		assertThat(result.downloadReady()).isTrue();
+	}
+
+	@Test
+	void getVideoReturnsNullThumbnailBeforeLambdaCallback() {
+		UUID videoUuid = UUID.fromString("0195eeee-bbbb-7eee-eeee-eeeeeeeeeeee");
+		String rawS3Key = "videos/raw/" + videoUuid + ".mp4";
+
+		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.of(
+				Video.builder()
+						.videoUuid(videoUuid)
+						.userUuid(userUuid)
+						.filePath(rawS3Key)
+						.fileSizeByte(2048L)
+						.createdAt(LocalDateTime.of(2026, 8, 17, 3, 30, 0))
+						.build()
+		));
+		given(storagePort.createPresignedRawPlaybackUrl(rawS3Key)).willReturn("https://example/playback");
+		given(storagePort.resolvePublicUrl(null)).willReturn(null);
+
+		var result = videoService.getVideo(videoUuid);
+
+		assertThat(result.thumbnailUrl()).isNull();
+		assertThat(result.downloadReady()).isFalse();
+	}
+
+	@Test
+	void getVideoThrowsNotFoundWhenMissing() {
+		UUID videoUuid = UUID.fromString("0195ffff-bbbb-7fff-ffff-ffffffffffff");
+		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> videoService.getVideo(videoUuid))
+				.isInstanceOf(ResponseStatusException.class)
+				.hasMessageContaining("Video not found");
 	}
 }

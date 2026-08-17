@@ -3,6 +3,7 @@ package com.plip.video.application.service;
 import com.plip.video.application.port.in.VideoUseCase;
 import com.plip.video.application.port.in.dto.VideoCompleteCommand;
 import com.plip.video.application.port.in.dto.VideoCompleteResult;
+import com.plip.video.application.port.in.dto.VideoDetailResult;
 import com.plip.video.application.port.in.dto.VideoRegisterCommand;
 import com.plip.video.application.port.in.dto.VideoRegisterResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
@@ -17,8 +18,10 @@ import com.plip.video.global.config.VideoProperties;
 import com.plip.video.global.util.OverlayTimeFormatter;
 import com.plip.video.global.util.VideoUuidGenerator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -85,6 +88,24 @@ public class VideoService implements VideoUseCase {
 				saved.getCaption(),
 				saved.getCreatedAt(),
 				overlayTime
+		);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public VideoDetailResult getVideo(UUID videoUuid) {
+		Video video = videoPersistencePort.findByVideoUuid(videoUuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Video not found: " + videoUuid));
+
+		return new VideoDetailResult(
+				video.getVideoUuid(),
+				video.getUserUuid(),
+				video.getCaption(),
+				video.getCreatedAt(),
+				storagePort.createPresignedRawPlaybackUrl(video.getFilePath()),
+				storagePort.resolvePublicUrl(video.getThumbnailImagePath()),
+				OverlayTimeFormatter.formatKstHhMm(video.getCreatedAt()),
+				video.isDownloadReady()
 		);
 	}
 

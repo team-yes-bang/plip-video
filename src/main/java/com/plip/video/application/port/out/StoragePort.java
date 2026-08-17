@@ -15,5 +15,7 @@ public interface StoragePort {
 
 	StoredObject headRawObject(String rawS3Key);
 
+	String createPresignedRawPlaybackUrl(String rawS3Key);
+
 	String resolvePublicUrl(String relativePath);
 }
