@@ -4,8 +4,9 @@ import com.plip.video.application.port.in.VideoUseCase;
 import com.plip.video.application.port.in.dto.VideoCompleteCommand;
 import com.plip.video.application.port.in.dto.VideoCompleteResult;
 import com.plip.video.application.port.in.dto.VideoDetailResult;
-import com.plip.video.application.port.in.dto.VideoRegisterCommand;
-import com.plip.video.application.port.in.dto.VideoRegisterResult;
+import com.plip.video.application.port.in.dto.VideoDownloadUrlProcessing;
+import com.plip.video.application.port.in.dto.VideoDownloadUrlReady;
+import com.plip.video.application.port.in.dto.VideoDownloadUrlResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
 import com.plip.video.application.port.in.dto.VideoUploadUrlResult;
 import com.plip.video.application.port.out.StoragePort;
@@ -23,7 +24,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.IOException;
 import java.util.UUID;
 
 @Service
@@ -31,6 +31,8 @@ import java.util.UUID;
 public class VideoService implements VideoUseCase {
 
 	private static final String DEFAULT_CONTENT_TYPE = "video/mp4";
+	private static final int DOWNLOAD_RETRY_AFTER_SECONDS = 3;
+	private static final String DOWNLOAD_PROCESSING_MESSAGE = "다운로드용 영상 가공 중입니다.";
 
 	private final VideoPersistencePort videoPersistencePort;
 	private final StoragePort storagePort;
@@ -94,8 +96,7 @@ public class VideoService implements VideoUseCase {
 	@Override
 	@Transactional(readOnly = true)
 	public VideoDetailResult getVideo(UUID videoUuid) {
-		Video video = videoPersistencePort.findByVideoUuid(videoUuid)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Video not found: " + videoUuid));
+		Video video = findVideoOrThrow(videoUuid);
 
 		return new VideoDetailResult(
 				video.getVideoUuid(),
@@ -106,6 +107,25 @@ public class VideoService implements VideoUseCase {
 				storagePort.resolvePublicUrl(video.getThumbnailImagePath()),
 				OverlayTimeFormatter.formatKstHhMm(video.getCreatedAt()),
 				video.isDownloadReady()
+		);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public VideoDownloadUrlResult getDownloadUrl(UUID videoUuid) {
+		Video video = findVideoOrThrow(videoUuid);
+
+		if (!video.isDownloadReady()) {
+			return new VideoDownloadUrlProcessing(
+					video.getVideoUuid(),
+					DOWNLOAD_RETRY_AFTER_SECONDS,
+					DOWNLOAD_PROCESSING_MESSAGE
+			);
+		}
+
+		return new VideoDownloadUrlReady(
+				video.getVideoUuid(),
+				storagePort.resolvePublicUrl(video.getProcessedPath())
 		);
 	}
 
@@ -125,62 +145,9 @@ public class VideoService implements VideoUseCase {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Video not found: " + videoUuid));
 	}
 
-	@Override
-	@Transactional
-	public VideoRegisterResult register(VideoRegisterCommand command) {
-		validateRegistration(command);
-
-		UUID videoUuid = VideoUuidGenerator.generate();
-		StoredObject rawVideo = uploadRawVideo(videoUuid, command);
-		StoredObject thumbnail = uploadThumbnailPlaceholder(videoUuid, command);
-
-		Video video = Video.builder()
-				.videoUuid(videoUuid)
-				.userUuid(command.userUuid())
-				.caption(normalizeCaption(command.caption()))
-				.filePath(rawVideo.relativePath())
-				.fileSizeByte(rawVideo.sizeBytes())
-				.thumbnailImagePath(thumbnail.relativePath())
-				.build();
-
-		Video saved = videoPersistencePort.save(video);
-		String overlayTime = OverlayTimeFormatter.formatKstHhMm(saved.getCreatedAt());
-		videoProcessingQueuePort.enqueueVideoProcessing(
-				saved.getVideoUuid(),
-				saved.getFilePath(),
-				saved.getCaption(),
-				overlayTime
-		);
-
-		return new VideoRegisterResult(
-				saved.getVideoUuid(),
-				saved.getCaption(),
-				saved.getCreatedAt(),
-				storagePort.resolvePublicUrl(saved.getThumbnailImagePath())
-		);
-	}
-
-	@Override
-	@Transactional(readOnly = true)
-	public void requestDownloadProcessing(UUID videoUuid) {
-		Video video = videoPersistencePort.findByVideoUuid(videoUuid)
-				.orElseThrow(() -> new IllegalArgumentException("Video not found: " + videoUuid));
-
-		String overlayTime = OverlayTimeFormatter.formatKstHhMm(video.getCreatedAt());
-		videoProcessingQueuePort.enqueueVideoProcessing(
-				videoUuid,
-				video.getFilePath(),
-				video.getCaption(),
-				overlayTime
-		);
-	}
-
-	private void validateRegistration(VideoRegisterCommand command) {
-		if (command.videoFile() == null || command.videoFile().isEmpty()) {
-			throw new IllegalArgumentException("Video file is required");
-		}
-		validateFileSize(command.videoFile().getSize());
-		validateContentType(command.videoFile().getContentType());
+	private Video findVideoOrThrow(UUID videoUuid) {
+		return videoPersistencePort.findByVideoUuid(videoUuid)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Video not found: " + videoUuid));
 	}
 
 	private String resolveContentType(String contentType) {
@@ -198,32 +165,6 @@ public class VideoService implements VideoUseCase {
 	private void validateFileSize(long sizeBytes) {
 		if (sizeBytes > videoProperties.maxFileSizeBytes()) {
 			throw new IllegalArgumentException("Video file exceeds max size");
-		}
-	}
-
-	private StoredObject uploadRawVideo(UUID videoUuid, VideoRegisterCommand command) {
-		try {
-			return storagePort.uploadRawVideo(
-					videoUuid,
-					command.videoFile().getInputStream(),
-					command.videoFile().getSize(),
-					command.videoFile().getContentType()
-			);
-		} catch (IOException e) {
-			throw new IllegalStateException("Failed to read uploaded video", e);
-		}
-	}
-
-	private StoredObject uploadThumbnailPlaceholder(UUID videoUuid, VideoRegisterCommand command) {
-		try {
-			return storagePort.uploadThumbnail(
-					videoUuid,
-					command.videoFile().getInputStream(),
-					command.videoFile().getSize(),
-					"image/jpeg"
-			);
-		} catch (IOException e) {
-			throw new IllegalStateException("Failed to read video for thumbnail extraction", e);
 		}
 	}
 

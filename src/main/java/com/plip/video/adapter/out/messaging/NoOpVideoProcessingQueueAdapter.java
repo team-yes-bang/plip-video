@@ -22,9 +22,4 @@ public class NoOpVideoProcessingQueueAdapter implements VideoProcessingQueuePort
 				overlayTime
 		);
 	}
-
-	@Override
-	public void enqueueForDownloadProcessing(UUID videoUuid, String rawVideoPath) {
-		enqueueVideoProcessing(videoUuid, rawVideoPath, null, null);
-	}
 }

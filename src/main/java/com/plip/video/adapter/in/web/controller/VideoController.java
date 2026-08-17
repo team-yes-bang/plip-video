@@ -3,22 +3,25 @@ package com.plip.video.adapter.in.web.controller;
 import com.plip.video.adapter.in.web.dto.VideoCompleteRequest;
 import com.plip.video.adapter.in.web.dto.VideoCompleteResponse;
 import com.plip.video.adapter.in.web.dto.VideoDetailResponse;
-import com.plip.video.adapter.in.web.dto.VideoRegisterResponse;
+import com.plip.video.adapter.in.web.dto.VideoDownloadUrlProcessingResponse;
+import com.plip.video.adapter.in.web.dto.VideoDownloadUrlResponse;
 import com.plip.video.adapter.in.web.dto.VideoUploadUrlResponse;
 import com.plip.video.application.port.in.VideoUseCase;
 import com.plip.video.application.port.in.dto.VideoCompleteCommand;
 import com.plip.video.application.port.in.dto.VideoCompleteResult;
 import com.plip.video.application.port.in.dto.VideoDetailResult;
-import com.plip.video.application.port.in.dto.VideoRegisterCommand;
-import com.plip.video.application.port.in.dto.VideoRegisterResult;
+import com.plip.video.application.port.in.dto.VideoDownloadUrlProcessing;
+import com.plip.video.application.port.in.dto.VideoDownloadUrlReady;
+import com.plip.video.application.port.in.dto.VideoDownloadUrlResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
 import com.plip.video.application.port.in.dto.VideoUploadUrlResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,7 +30,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -106,32 +108,29 @@ public class VideoController {
 		);
 	}
 
-	@Operation(summary = "[레거시] multipart 영상 업로드", description = "PR-6에서 제거 예정. upload-url + complete 사용 권장.")
-	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	@ResponseStatus(HttpStatus.CREATED)
-	public VideoRegisterResponse register(
-			@Parameter(description = "업로더 UUID") @RequestParam UUID userUuid,
-			@Parameter(description = "영상 파일 (최대 5초)") @RequestParam MultipartFile videoFile,
-			@Parameter(description = "캡션 (선택)") @RequestParam(required = false) String caption
+	@Operation(summary = "다운로드 URL 조회", description = """
+			가공본(processed) CloudFront URL을 반환합니다.
+			- processed_path 없음 → 202 Accepted + Retry-After + PROCESSING body
+			- processed_path 있음 → 200 OK + downloadUrl
+			""")
+	@GetMapping("/{videoUuid}/download-url")
+	public ResponseEntity<?> getDownloadUrl(
+			@Parameter(description = "영상 UUID") @PathVariable UUID videoUuid
 	) {
-		VideoRegisterResult result = videoUseCase.register(new VideoRegisterCommand(
-				userUuid,
-				videoFile,
-				caption
-		));
+		VideoDownloadUrlResult result = videoUseCase.getDownloadUrl(videoUuid);
 
-		return new VideoRegisterResponse(
-				result.videoUuid(),
-				result.caption(),
-				result.createdAt(),
-				result.thumbnailUrl()
-		);
-	}
+		if (result instanceof VideoDownloadUrlProcessing processing) {
+			return ResponseEntity.status(HttpStatus.ACCEPTED)
+					.header(HttpHeaders.RETRY_AFTER, String.valueOf(processing.retryAfterSeconds()))
+					.body(new VideoDownloadUrlProcessingResponse(
+							"PROCESSING",
+							processing.videoUuid(),
+							processing.retryAfterSeconds(),
+							processing.message()
+					));
+		}
 
-	@Operation(summary = "[레거시] 다운로드용 영상 가공 요청", description = "PR-6에서 제거 예정. complete 시 자동 enqueue.")
-	@PostMapping("/{videoUuid}/download-processing")
-	@ResponseStatus(HttpStatus.ACCEPTED)
-	public void requestDownloadProcessing(@PathVariable UUID videoUuid) {
-		videoUseCase.requestDownloadProcessing(videoUuid);
+		VideoDownloadUrlReady ready = (VideoDownloadUrlReady) result;
+		return ResponseEntity.ok(new VideoDownloadUrlResponse(ready.videoUuid(), ready.downloadUrl()));
 	}
 }
