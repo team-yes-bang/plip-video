@@ -8,7 +8,8 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   ECR_REGISTRY: 334687118442.dkr.ecr.ap-northeast-2.amazonaws.com
-  IMAGE_NAME: plip-video   # ← repo마다 변경 (plip-agit, plip-diary, …)
+  IMAGE_NAME: plip-video
+  MANIFEST_REPO: team-yes-bang/plip-k8s-manifests
 
 jobs:
   test:
@@ -53,3 +54,25 @@ jobs:
             .
           docker push $ECR_REGISTRY/$IMAGE_NAME:${{ github.sha }}
           docker push $ECR_REGISTRY/$IMAGE_NAME:latest
+
+  update-manifest:
+    needs: push-ecr
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update plip-k8s-manifests
+        env:
+          MANIFEST_TOKEN: ${{ secrets.MANIFEST_REPO_PAT }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          SERVICE="${IMAGE_NAME#plip-}"
+          git clone "https://x-access-token:${MANIFEST_TOKEN}@github.com/${MANIFEST_REPO}.git" manifests
+          cd manifests
+          git checkout main
+          git pull --rebase
+          FILE="apps/${SERVICE}/deployment.yaml"
+          sed -i "s|${IMAGE_NAME}:.*|${IMAGE_NAME}:${IMAGE_TAG}|" "$FILE"
+          git config user.email "ci@plip.life"
+          git config user.name "github-actions[bot]"
+          git diff --quiet && exit 0
+          git commit -am "deploy ${IMAGE_NAME} ${IMAGE_TAG}"
+          git push
