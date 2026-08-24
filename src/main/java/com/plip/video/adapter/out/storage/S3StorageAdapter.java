@@ -35,7 +35,7 @@ public class S3StorageAdapter implements StoragePort {
 	}
 
 	@Override
-	public PresignedUploadUrl createPresignedPutUrl(UUID videoUuid, String contentType) {
+	public PresignedUploadUrl createPresignedPutUrl(UUID videoUuid, String contentType, long contentLengthBytes) {
 		String rawS3Key = buildRawS3Key(videoUuid);
 		Duration ttl = Duration.ofSeconds(awsProperties.presignedUrlTtlSeconds());
 		Instant expiresAt = Instant.now().plus(ttl);
@@ -44,6 +44,7 @@ public class S3StorageAdapter implements StoragePort {
 				.bucket(awsProperties.s3().rawBucket())
 				.key(rawS3Key)
 				.contentType(contentType)
+				.contentLength(contentLengthBytes)
 				.build();
 
 		PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()

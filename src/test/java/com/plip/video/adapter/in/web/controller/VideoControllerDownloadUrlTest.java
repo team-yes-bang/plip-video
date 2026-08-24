@@ -1,9 +1,12 @@
 package com.plip.video.adapter.in.web.controller;
 
+import com.plip.video.support.WebMvcSecurityTestConfig;
+import com.plip.video.adapter.in.web.AuthenticatedActorTestSupport;
 import com.plip.video.application.port.in.VideoUseCase;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlProcessing;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlReady;
 import com.plip.video.global.config.InternalProperties;
+import com.plip.video.global.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -24,10 +27,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(VideoController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(VideoControllerDownloadUrlTest.TestConfig.class)
+@Import({GlobalExceptionHandler.class, VideoControllerDownloadUrlTest.TestConfig.class, WebMvcSecurityTestConfig.class})
 class VideoControllerDownloadUrlTest {
 
 	private static final UUID VIDEO_UUID = UUID.fromString("0195dddd-bbbb-7ddd-dddd-dddddddddddd");
+	private static final UUID USER_UUID = UUID.fromString("0195eeee-bbbb-7eee-eeee-eeeeeeeeeeee");
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -37,11 +41,12 @@ class VideoControllerDownloadUrlTest {
 
 	@Test
 	void getDownloadUrlReturns202WhenProcessing() throws Exception {
-		given(videoUseCase.getDownloadUrl(VIDEO_UUID)).willReturn(
+		given(videoUseCase.getDownloadUrl(VIDEO_UUID, USER_UUID)).willReturn(
 				new VideoDownloadUrlProcessing(VIDEO_UUID, 3, "다운로드용 영상 가공 중입니다.")
 		);
 
-		mockMvc.perform(get("/api/videos/{videoUuid}/download-url", VIDEO_UUID))
+		mockMvc.perform(get("/api/videos/{videoUuid}/download-url", VIDEO_UUID)
+						.with(AuthenticatedActorTestSupport.authenticated(USER_UUID)))
 				.andExpect(status().isAccepted())
 				.andExpect(header().string("Retry-After", "3"))
 				.andExpect(jsonPath("$.status").value("PROCESSING"))
@@ -52,11 +57,12 @@ class VideoControllerDownloadUrlTest {
 
 	@Test
 	void getDownloadUrlReturns200WhenReady() throws Exception {
-		given(videoUseCase.getDownloadUrl(VIDEO_UUID)).willReturn(
+		given(videoUseCase.getDownloadUrl(VIDEO_UUID, USER_UUID)).willReturn(
 				new VideoDownloadUrlReady(VIDEO_UUID, "https://cdn.example/videos/processed/test.mp4")
 		);
 
-		mockMvc.perform(get("/api/videos/{videoUuid}/download-url", VIDEO_UUID))
+		mockMvc.perform(get("/api/videos/{videoUuid}/download-url", VIDEO_UUID)
+						.with(AuthenticatedActorTestSupport.authenticated(USER_UUID)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.videoUuid").value(VIDEO_UUID.toString()))
 				.andExpect(jsonPath("$.downloadUrl").value("https://cdn.example/videos/processed/test.mp4"));

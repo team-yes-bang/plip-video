@@ -13,6 +13,10 @@ eureka:
     enabled: false
 
 plip:
+  gateway:
+    hmac:
+      secret: ${GATEWAY_HMAC_SECRET:}
+      max-skew-seconds: ${GATEWAY_HMAC_MAX_SKEW_SECONDS:300}
   internal:
     api-key: ${INTERNAL_API_KEY}
   aws:

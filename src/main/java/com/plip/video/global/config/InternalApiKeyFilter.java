@@ -4,13 +4,14 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import java.io.IOException;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -40,11 +41,21 @@ public class InternalApiKeyFilter extends OncePerRequestFilter {
 		}
 
 		String providedKey = request.getHeader(HEADER_NAME);
-		if (!configuredKey.equals(providedKey)) {
+		if (!constantTimeEquals(configuredKey, providedKey)) {
 			response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid internal API key");
 			return;
 		}
 
 		filterChain.doFilter(request, response);
+	}
+
+	private static boolean constantTimeEquals(String expected, String actual) {
+		if (expected == null || actual == null) {
+			return false;
+		}
+		return MessageDigest.isEqual(
+				expected.getBytes(StandardCharsets.UTF_8),
+				actual.getBytes(StandardCharsets.UTF_8)
+		);
 	}
 }

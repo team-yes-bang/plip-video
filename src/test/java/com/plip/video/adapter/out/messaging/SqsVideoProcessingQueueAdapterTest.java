@@ -38,7 +38,7 @@ class SqsVideoProcessingQueueAdapterTest {
 
 	@Test
 	void enqueuesVideoProcessingMessageWithV1Schema() throws Exception {
-		adapter.enqueueVideoProcessing(VIDEO_UUID, RAW_S3_KEY, "hello", "12:30");
+		adapter.enqueueVideoProcessing(VIDEO_UUID, RAW_S3_KEY, "hello", "12:30", 5);
 
 		ArgumentCaptor<SendMessageRequest> captor = ArgumentCaptor.forClass(SendMessageRequest.class);
 		verify(sqsClient).sendMessage(captor.capture());
@@ -52,11 +52,12 @@ class SqsVideoProcessingQueueAdapterTest {
 		assertThat(body).containsEntry("rawS3Key", RAW_S3_KEY);
 		assertThat(body).containsEntry("caption", "hello");
 		assertThat(body).containsEntry("overlayTime", "12:30");
+		assertThat(body).containsEntry("maxDurationSeconds", 5);
 	}
 
 	@Test
 	void omitsBlankCaptionAndOverlayTime() throws Exception {
-		adapter.enqueueVideoProcessing(VIDEO_UUID, RAW_S3_KEY, "  ", null);
+		adapter.enqueueVideoProcessing(VIDEO_UUID, RAW_S3_KEY, "  ", null, 5);
 
 		ArgumentCaptor<SendMessageRequest> captor = ArgumentCaptor.forClass(SendMessageRequest.class);
 		verify(sqsClient).sendMessage(captor.capture());
@@ -71,7 +72,7 @@ class SqsVideoProcessingQueueAdapterTest {
 	void skipsEnqueueWhenQueueUrlIsBlank() {
 		adapter = new SqsVideoProcessingQueueAdapter(sqsClient, awsProperties(" "), new ObjectMapper());
 
-		adapter.enqueueVideoProcessing(VIDEO_UUID, RAW_S3_KEY, "hello", "12:30");
+		adapter.enqueueVideoProcessing(VIDEO_UUID, RAW_S3_KEY, "hello", "12:30", 5);
 
 		verify(sqsClient, never()).sendMessage(org.mockito.ArgumentMatchers.any(SendMessageRequest.class));
 	}
