@@ -3,6 +3,8 @@ spring:
     name: video # Eureka 등록명 — 소문자·하이픈 (예: agit-service)
   profiles:
     active: local
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${DB_USERNAME}
@@ -33,15 +35,19 @@ plip:
       - video/mp4
       - video/quicktime
     max-file-size-bytes: ${VIDEO_MAX_FILE_SIZE_BYTES:52428800}
+  gateway:
+    hmac:
+      secret: ${GATEWAY_HMAC_SECRET:}
+      max-skew-seconds: ${GATEWAY_HMAC_MAX_SKEW_SECONDS:300}
   internal:
     api-key: ${INTERNAL_API_KEY:}
   aws:
-    enabled: ${AWS_ENABLED:false}
+    enabled: ${AWS_ENABLED}
     region: ${AWS_REGION:ap-northeast-2}
     presigned-url-ttl-seconds: ${AWS_PRESIGNED_URL_TTL_SECONDS:10800}
     s3:
-      raw-bucket: ${AWS_S3_RAW_BUCKET:}
-      processed-bucket: ${AWS_S3_PROCESSED_BUCKET:}
+      raw-bucket: ${AWS_S3_RAW_BUCKET}
+      processed-bucket: ${AWS_S3_PROCESSED_BUCKET}
       raw-video-prefix: videos/raw/
       processed-video-prefix: videos/processed/
       image-prefix: images/
@@ -50,3 +56,13 @@ plip:
       video-processing-queue-url: ${AWS_SQS_VIDEO_PROCESSING_QUEUE_URL:}
     lambda:
       thumbnail-function-arn: ${AWS_LAMBDA_THUMBNAIL_ARN:}
+
+app:
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:false}
+    topics:
+      video-uploaded: ${APP_KAFKA_TOPICS_VIDEO_UPLOADED:video.uploaded}
+      diary-video-uploaded: ${APP_KAFKA_TOPICS_DIARY_VIDEO_UPLOADED:diary.video.uploaded}
+  topic:
+    internal-base-url: ${TOPIC_INTERNAL_BASE_URL:http://localhost:8084}
+    internal-api-key: ${TOPIC_INTERNAL_API_KEY:}

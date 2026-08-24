@@ -26,7 +26,13 @@ public class SqsVideoProcessingQueueAdapter implements VideoProcessingQueuePort 
 	private final ObjectMapper objectMapper;
 
 	@Override
-	public void enqueueVideoProcessing(UUID videoUuid, String rawS3Key, String caption, String overlayTime) {
+	public void enqueueVideoProcessing(
+			UUID videoUuid,
+			String rawS3Key,
+			String caption,
+			String overlayTime,
+			int maxDurationSeconds
+	) {
 		String queueUrl = awsProperties.sqs().videoProcessingQueueUrl();
 		if (queueUrl == null || queueUrl.isBlank()) {
 			log.warn("Video processing SQS queue URL is not configured — skip enqueue for {}", videoUuid);
@@ -36,6 +42,7 @@ public class SqsVideoProcessingQueueAdapter implements VideoProcessingQueuePort 
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("videoUuid", videoUuid.toString());
 		body.put("rawS3Key", rawS3Key);
+		body.put("maxDurationSeconds", maxDurationSeconds);
 		if (caption != null && !caption.isBlank()) {
 			body.put("caption", caption);
 		}

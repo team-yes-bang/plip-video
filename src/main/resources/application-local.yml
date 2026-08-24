@@ -19,7 +19,31 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
 
 plip:
+  gateway:
+    hmac:
+      secret: ${GATEWAY_HMAC_SECRET:}
+      max-skew-seconds: ${GATEWAY_HMAC_MAX_SKEW_SECONDS:300}
   internal:
     api-key: ${INTERNAL_API_KEY:local-dev-internal-key}
+  video:
+    outbox:
+      relay-batch-size: ${VIDEO_OUTBOX_RELAY_BATCH_SIZE:20}
+      max-attempts: ${VIDEO_OUTBOX_MAX_ATTEMPTS:5}
+      relay-interval-ms: ${VIDEO_OUTBOX_RELAY_INTERVAL_MS:5000}
+      retry-backoff-ms: ${VIDEO_OUTBOX_RETRY_BACKOFF_MS:1000}
   aws:
-    enabled: false
+    enabled: ${AWS_ENABLED:true}
+    region: ${AWS_REGION:ap-northeast-2}
+    presigned-url-ttl-seconds: ${AWS_PRESIGNED_URL_TTL_SECONDS:10800}
+    s3:
+      # .env 와 동일 dev 기본값 — bootRun 시 env 미export여도 placeholder가 URL에 그대로 들어가지 않도록
+      raw-bucket: ${AWS_S3_RAW_BUCKET:yes-plip-dev-media-334687118442-raw}
+      processed-bucket: ${AWS_S3_PROCESSED_BUCKET:yes-plip-dev-media-334687118442-processed}
+      raw-video-prefix: videos/raw/
+      processed-video-prefix: videos/processed/
+      image-prefix: images/
+      cdn-base-url: ${AWS_CDN_BASE_URL:https://ds2468g03st3p.cloudfront.net}
+    sqs:
+      video-processing-queue-url: ${AWS_SQS_VIDEO_PROCESSING_QUEUE_URL:https://sqs.ap-northeast-2.amazonaws.com/334687118442/yes-plip-dev-video-processing}
+    lambda:
+      thumbnail-function-arn: ${AWS_LAMBDA_THUMBNAIL_ARN:arn:aws:lambda:ap-northeast-2:334687118442:function:yes-plip-dev-video-thumbnail}

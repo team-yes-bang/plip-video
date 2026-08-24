@@ -29,10 +29,11 @@ public class NoOpStorageAdapter implements StoragePort {
 	}
 
 	@Override
-	public PresignedUploadUrl createPresignedPutUrl(UUID videoUuid, String contentType) {
+	public PresignedUploadUrl createPresignedPutUrl(UUID videoUuid, String contentType, long contentLengthBytes) {
 		String rawS3Key = buildRawS3Key(videoUuid);
 		Instant expiresAt = Instant.now().plus(Duration.ofSeconds(awsProperties.presignedUrlTtlSeconds()));
-		String uploadUrl = "http://localhost/stub-presigned-put/" + rawS3Key;
+		String uploadUrl = "http://localhost/stub-presigned-put/" + rawS3Key
+				+ "?contentLength=" + contentLengthBytes;
 		log.warn("AWS disabled — stub presigned PUT URL for {}", rawS3Key);
 		return new PresignedUploadUrl(rawS3Key, uploadUrl, expiresAt);
 	}

@@ -1,9 +1,11 @@
 package com.plip.video.adapter.in.web.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.plip.video.support.WebMvcSecurityTestConfig;
 import com.plip.video.application.port.in.VideoUseCase;
 import com.plip.video.global.config.InternalApiKeyFilter;
 import com.plip.video.global.config.InternalProperties;
+import com.plip.video.application.port.in.dto.VideoOwnershipResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -17,13 +19,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static com.plip.video.global.config.InternalApiKeyFilter.HEADER_NAME;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(InternalVideoController.class)
-@Import({InternalApiKeyFilter.class, InternalVideoControllerTest.TestConfig.class})
+@Import({InternalApiKeyFilter.class, InternalVideoControllerTest.TestConfig.class, WebMvcSecurityTestConfig.class})
 class InternalVideoControllerTest {
 
 	private static final String API_KEY = "test-internal-key";
@@ -37,6 +41,20 @@ class InternalVideoControllerTest {
 
 	@MockitoBean
 	private VideoUseCase videoUseCase;
+
+	@Test
+	void getOwnershipWithValidApiKey() throws Exception {
+		UUID ownerUuid = UUID.fromString("0195bbbb-bbbb-7bbb-bbbb-bbbbbbbbbbbb");
+		given(videoUseCase.getOwnership(VIDEO_UUID)).willReturn(new VideoOwnershipResult(VIDEO_UUID, ownerUuid));
+
+		mockMvc.perform(get("/internal/videos/{videoUuid}", VIDEO_UUID)
+						.header(HEADER_NAME, API_KEY))
+				.andExpect(status().isOk())
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.videoUuid")
+						.value(VIDEO_UUID.toString()))
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.userUuid")
+						.value(ownerUuid.toString()));
+	}
 
 	@Test
 	void updateThumbnailRequiresApiKey() throws Exception {
@@ -70,11 +88,12 @@ class InternalVideoControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(
 								new com.plip.video.adapter.in.web.dto.InternalUpdateProcessedRequest(
-										"videos/processed/test.mp4"
+										"videos/processed/test.mp4",
+										4
 								))))
 				.andExpect(status().isNoContent());
 
-		verify(videoUseCase).updateProcessed(eq(VIDEO_UUID), eq("videos/processed/test.mp4"));
+		verify(videoUseCase).updateProcessed(eq(VIDEO_UUID), eq("videos/processed/test.mp4"), eq(4));
 	}
 
 	@TestConfiguration

@@ -7,6 +7,7 @@ public record VideoCompleteResult(
 		UUID videoUuid,
 		String caption,
 		LocalDateTime createdAt,
-		String overlayTime
+		String overlayTime,
+		boolean newlyCreated
 ) {
 }

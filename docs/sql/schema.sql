@@ -33,3 +33,38 @@ CREATE TABLE image (
     INDEX idx_image_type_status (type, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Master image table (ERD). Profile/Product path는 각 서비스 DB';
+
+CREATE TABLE video_processing_outbox (
+    id                BIGINT       NOT NULL AUTO_INCREMENT,
+    video_uuid        BINARY(16)   NOT NULL COMMENT 'Target video UUID',
+    event_type        VARCHAR(32)  NOT NULL COMMENT 'THUMBNAIL_INVOKE | SQS_ENQUEUE',
+    payload_json      JSON         NOT NULL,
+    status            VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING | SENT | FAILED',
+    attempt_count     INT          NOT NULL DEFAULT 0,
+    next_attempt_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    created_at        DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    sent_at           DATETIME(6)  NULL,
+    last_error        VARCHAR(512) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_outbox_video_event (video_uuid, event_type),
+    INDEX idx_outbox_pending (status, next_attempt_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Durable outbox for post-complete Lambda/SQS dispatch';
+
+CREATE TABLE video_destination_outbox (
+    id                BIGINT       NOT NULL AUTO_INCREMENT,
+    video_uuid        BINARY(16)   NOT NULL,
+    event_type        VARCHAR(32)  NOT NULL COMMENT 'TOPIC_VIDEO_UPLOADED | DIARY_VIDEO_UPLOADED',
+    destination_uuid  BINARY(16)   NOT NULL COMMENT 'topicUuid or themeUuid',
+    payload_json      JSON         NOT NULL,
+    status            VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING | SENT | FAILED',
+    attempt_count     INT          NOT NULL DEFAULT 0,
+    next_attempt_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    created_at        DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    sent_at           DATETIME(6)  NULL,
+    last_error        VARCHAR(512) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_destination_outbox (video_uuid, event_type, destination_uuid),
+    INDEX idx_destination_outbox_pending (status, next_attempt_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Durable outbox for destination Kafka events';
