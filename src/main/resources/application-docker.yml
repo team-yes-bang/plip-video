@@ -8,6 +8,8 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
 
 eureka:
   instance:
@@ -19,9 +21,25 @@ eureka:
     service-url:
       defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://eureka-server:8761/eureka/}
 
+app:
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:true}
+    topics:
+      video-uploaded: ${APP_KAFKA_TOPICS_VIDEO_UPLOADED:video.uploaded}
+      diary-video-uploaded: ${APP_KAFKA_TOPICS_DIARY_VIDEO_UPLOADED:diary.video.uploaded}
+
 plip:
   internal:
     api-key: ${INTERNAL_API_KEY:}
+  video:
+    outbox:
+      relay-batch-size: ${VIDEO_OUTBOX_RELAY_BATCH_SIZE:20}
+      max-attempts: ${VIDEO_OUTBOX_MAX_ATTEMPTS:5}
+      relay-interval-ms: ${VIDEO_OUTBOX_RELAY_INTERVAL_MS:5000}
+      retry-backoff-ms: ${VIDEO_OUTBOX_RETRY_BACKOFF_MS:1000}
+  topic:
+    internal-base-url: ${TOPIC_INTERNAL_BASE_URL:http://topic:8080}
+    internal-api-key: ${TOPIC_INTERNAL_API_KEY:}
   aws:
     enabled: ${AWS_ENABLED:true}
     region: ${AWS_REGION:ap-northeast-2}

@@ -7,10 +7,19 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
 eureka:
   client:
     enabled: false
+
+app:
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:true}
+    topics:
+      video-uploaded: ${APP_KAFKA_TOPICS_VIDEO_UPLOADED:video.uploaded}
+      diary-video-uploaded: ${APP_KAFKA_TOPICS_DIARY_VIDEO_UPLOADED:diary.video.uploaded}
 
 plip:
   gateway:
@@ -19,6 +28,12 @@ plip:
       max-skew-seconds: ${GATEWAY_HMAC_MAX_SKEW_SECONDS:300}
   internal:
     api-key: ${INTERNAL_API_KEY}
+  video:
+    outbox:
+      relay-batch-size: ${VIDEO_OUTBOX_RELAY_BATCH_SIZE:20}
+      max-attempts: ${VIDEO_OUTBOX_MAX_ATTEMPTS:5}
+      relay-interval-ms: ${VIDEO_OUTBOX_RELAY_INTERVAL_MS:5000}
+      retry-backoff-ms: ${VIDEO_OUTBOX_RETRY_BACKOFF_MS:1000}
   aws:
     enabled: true
     region: ${AWS_REGION}
