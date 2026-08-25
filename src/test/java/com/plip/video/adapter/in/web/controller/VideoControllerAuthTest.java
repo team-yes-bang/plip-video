@@ -39,7 +39,7 @@ class VideoControllerAuthTest {
 
 	@Test
 	void issueUploadUrlRequiresAuthentication() throws Exception {
-		mockMvc.perform(post("/api/videos/upload-url").param("contentLengthBytes", "1024"))
+		mockMvc.perform(post("/api/v1/videos/upload-url").param("contentLengthBytes", "1024"))
 				.andExpect(status().isUnauthorized());
 	}
 
@@ -54,7 +54,7 @@ class VideoControllerAuthTest {
 				)
 		);
 
-		mockMvc.perform(post("/api/videos/upload-url")
+		mockMvc.perform(post("/api/v1/videos/upload-url")
 						.param("contentLengthBytes", "1024")
 						.with(AuthenticatedActorTestSupport.authenticated(USER_UUID)))
 				.andExpect(status().isCreated());

@@ -16,7 +16,7 @@ Consumer 상세: plip-diary `docs/events/diary.video.uploaded.v1.md`
 
 ## 발행 트리거
 
-- `POST /api/videos/{videoUuid}/destination` — request body `kind: "DIARY"`
+- `POST /api/v1/videos/{videoUuid}/destination` — request body `kind: "DIARY"`
 - **선행 조건:** 동일 `videoUuid`에 대해 `POST .../complete`가 이미 성공
 - `complete` 직후 자동 발행 **하지 않음**
 

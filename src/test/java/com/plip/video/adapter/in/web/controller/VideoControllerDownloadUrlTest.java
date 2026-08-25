@@ -45,7 +45,7 @@ class VideoControllerDownloadUrlTest {
 				new VideoDownloadUrlProcessing(VIDEO_UUID, 3, "다운로드용 영상 가공 중입니다.")
 		);
 
-		mockMvc.perform(get("/api/videos/{videoUuid}/download-url", VIDEO_UUID)
+		mockMvc.perform(get("/api/v1/videos/{videoUuid}/download-url", VIDEO_UUID)
 						.with(AuthenticatedActorTestSupport.authenticated(USER_UUID)))
 				.andExpect(status().isAccepted())
 				.andExpect(header().string("Retry-After", "3"))
@@ -61,7 +61,7 @@ class VideoControllerDownloadUrlTest {
 				new VideoDownloadUrlReady(VIDEO_UUID, "https://cdn.example/videos/processed/test.mp4")
 		);
 
-		mockMvc.perform(get("/api/videos/{videoUuid}/download-url", VIDEO_UUID)
+		mockMvc.perform(get("/api/v1/videos/{videoUuid}/download-url", VIDEO_UUID)
 						.with(AuthenticatedActorTestSupport.authenticated(USER_UUID)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.videoUuid").value(VIDEO_UUID.toString()))
