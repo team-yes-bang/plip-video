@@ -43,7 +43,7 @@ import java.util.UUID;
 
 @Tag(name = "Video", description = "5초 영상 Presigned 업로드·조회 API")
 @RestController
-@RequestMapping("/api/videos")
+@RequestMapping("/api/v1/videos")
 @RequiredArgsConstructor
 public class VideoController {
 

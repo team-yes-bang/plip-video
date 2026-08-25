@@ -1,4 +1,4 @@
-# POST /api/videos/{videoUuid}/destination v1
+# POST /api/v1/videos/{videoUuid}/destination v1
 
 업로드 complete 이후, 영상을 **토픽** 또는 **다이어리 테마**에 비동기로 붙이기 위한 REST 계약.
 
@@ -20,7 +20,7 @@ topic/diary consumer: DB attach (수 초 내)
 ## Request
 
 ```
-POST /api/videos/{videoUuid}/destination
+POST /api/v1/videos/{videoUuid}/destination
 Content-Type: application/json
 Authorization: Bearer {JWT}   # Phase 1b — Gateway userUuid (query userUuid 사용 안 함)
 ```

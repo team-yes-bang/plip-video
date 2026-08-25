@@ -56,7 +56,7 @@ class InternalApiKeyFilterTest {
 
 	@Test
 	void skipsPublicApiPaths() throws Exception {
-		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/videos/uuid");
+		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/videos/uuid");
 
 		filter.doFilter(request, response, filterChain);
 

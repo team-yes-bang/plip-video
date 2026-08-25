@@ -12,7 +12,7 @@ tags:
 - name: Health
   description: 서비스 상태 확인
 paths:
-  /api/videos/{videoUuid}/destination:
+  /api/v1/videos/{videoUuid}/destination:
     post:
       tags:
       - Video
@@ -71,7 +71,7 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/VideoDestinationResponse"
-  /api/videos/{videoUuid}/complete:
+  /api/v1/videos/{videoUuid}/complete:
     post:
       tags:
       - Video
@@ -111,7 +111,7 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/VideoCompleteResponse"
-  /api/videos/upload-url:
+  /api/v1/videos/upload-url:
     post:
       tags:
       - Video
@@ -152,7 +152,7 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/VideoUploadUrlResponse"
-  /api/videos/{videoUuid}:
+  /api/v1/videos/{videoUuid}:
     get:
       tags:
       - Video
@@ -188,7 +188,7 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/VideoDetailResponse"
-  /api/videos/{videoUuid}/download-url:
+  /api/v1/videos/{videoUuid}/download-url:
     get:
       tags:
       - Video

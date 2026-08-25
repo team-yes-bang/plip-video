@@ -4,8 +4,8 @@ Kafka / EDA 스펙은 `docs/events/{event-name}.v1.md`에 둔다.
 
 | 이벤트 | 이 서비스 역할 | Consumer | 발행 트리거 |
 | --- | --- | --- | --- |
-| [video.uploaded.v1](video.uploaded.v1.md) | **Producer** | topic-service | `POST /api/videos/{uuid}/destination` (`kind=TOPIC`) |
-| [diary.video.uploaded.v1](diary.video.uploaded.v1.md) | **Producer** | diary-service | `POST /api/videos/{uuid}/destination` (`kind=DIARY`) |
+| [video.uploaded.v1](video.uploaded.v1.md) | **Producer** | topic-service | `POST /api/v1/videos/{uuid}/destination` (`kind=TOPIC`) |
+| [diary.video.uploaded.v1](diary.video.uploaded.v1.md) | **Producer** | diary-service | `POST /api/v1/videos/{uuid}/destination` (`kind=DIARY`) |
 
 Consumer 쪽 상세(멱등·한도·DB)는 각 서비스 docs를 따른다.
 

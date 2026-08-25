@@ -53,4 +53,10 @@ gateway Deployment·video Secret은 이미 `GATEWAY_HMAC_SECRET`을 읽도록 �
 
 ## 아직 코드로 미완 (낮은 우선)
 
-- Burn-in Lambda: S3 download + ffprobe + FFmpeg 실구현 (skeleton + helpers only)
+- Thumbnail Lambda: S3 + FFmpeg 첫 프레임 (Phase 1b skeleton)
+
+## Phase 2 burn-in Lambda
+
+- 코드: `terraform/lambda/burn_in/handler.py` (FFmpeg drawtext + callback)
+- 배포: `terraform/lambda/burn_in/deploy.sh`
+- E2E: `docs/api/phase2-e2e-test.md`

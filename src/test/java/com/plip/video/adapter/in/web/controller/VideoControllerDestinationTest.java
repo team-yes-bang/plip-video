@@ -53,7 +53,7 @@ class VideoControllerDestinationTest {
 				new VideoDestinationResult(VIDEO_UUID, "PUBLISHED")
 		);
 
-		mockMvc.perform(post("/api/videos/{videoUuid}/destination", VIDEO_UUID)
+		mockMvc.perform(post("/api/v1/videos/{videoUuid}/destination", VIDEO_UUID)
 						.with(AuthenticatedActorTestSupport.authenticated(USER_UUID))
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
@@ -69,7 +69,7 @@ class VideoControllerDestinationTest {
 
 	@Test
 	void publishDestinationReturns401WhenUnauthenticated() throws Exception {
-		mockMvc.perform(post("/api/videos/{videoUuid}/destination", VIDEO_UUID)
+		mockMvc.perform(post("/api/v1/videos/{videoUuid}/destination", VIDEO_UUID)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{

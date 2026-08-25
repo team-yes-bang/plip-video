@@ -16,7 +16,7 @@ Consumer 상세: plip-topic `docs/events/video.uploaded.v1.md`
 
 ## 발행 트리거
 
-- `POST /api/videos/{videoUuid}/destination` — request body `kind: "TOPIC"`
+- `POST /api/v1/videos/{videoUuid}/destination` — request body `kind: "TOPIC"`
 - **선행 조건:** 동일 `videoUuid`에 대해 `POST .../complete`가 이미 성공( DB row 존재 )
 - `complete` 직후 자동 발행 **하지 않음** (destination REST와 분리)
 

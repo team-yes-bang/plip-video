@@ -8,7 +8,7 @@ not only at `complete` (HeadObject).
 ## Mechanism
 
 1. Client knows `blob.size` before upload.
-2. `POST /api/videos/upload-url?contentLengthBytes={size}` — server rejects if `size > max` or `size <= 0`.
+2. `POST /api/v1/videos/upload-url?contentLengthBytes={size}` — server rejects if `size > max` or `size <= 0`.
 3. Presigned PUT signs `Content-Length: {size}` (AWS SigV4).
 4. Client `PUT` must send the same length; otherwise S3 returns `403 SignatureDoesNotMatch` / related error.
 5. `complete` still runs HeadObject size check (defense in depth).
