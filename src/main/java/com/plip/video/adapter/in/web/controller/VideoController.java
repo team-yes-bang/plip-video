@@ -21,10 +21,13 @@ import com.plip.video.application.port.in.dto.VideoDownloadUrlReady;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
 import com.plip.video.application.port.in.dto.VideoUploadUrlResult;
+import com.plip.video.global.config.SwaggerConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -42,6 +45,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @Tag(name = "Video", description = "5초 영상 Presigned 업로드·조회 API")
+@SecurityRequirements({
+		@SecurityRequirement(name = SwaggerConfig.BEARER_AUTH_SCHEME),
+		@SecurityRequirement(name = SwaggerConfig.USER_UUID_SCHEME)
+})
 @RestController
 @RequestMapping("/api/v1/videos")
 @RequiredArgsConstructor
