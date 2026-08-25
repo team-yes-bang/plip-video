@@ -71,6 +71,9 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/VideoDestinationResponse"
+      security:
+      - bearerAuth: []
+      - userUuid: []
   /api/v1/videos/{videoUuid}/complete:
     post:
       tags:
@@ -111,6 +114,9 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/VideoCompleteResponse"
+      security:
+      - bearerAuth: []
+      - userUuid: []
   /api/v1/videos/upload-url:
     post:
       tags:
@@ -152,6 +158,9 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/VideoUploadUrlResponse"
+      security:
+      - bearerAuth: []
+      - userUuid: []
   /api/v1/videos/{videoUuid}:
     get:
       tags:
@@ -188,6 +197,9 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/VideoDetailResponse"
+      security:
+      - bearerAuth: []
+      - userUuid: []
   /api/v1/videos/{videoUuid}/download-url:
     get:
       tags:
@@ -222,6 +234,9 @@ paths:
             '*/*':
               schema:
                 type: object
+      security:
+      - bearerAuth: []
+      - userUuid: []
   /api/test:
     get:
       tags:
@@ -365,3 +380,15 @@ components:
         downloadReady:
           type: boolean
           description: 다운로드용 가공본 준비 여부 (processed_path 존재)
+  securitySchemes:
+    bearerAuth:
+      type: http
+      description: "Gateway JWT. 클라이언트는 Bearer를 전달하고, Gateway가 검증 후 X-User-UUID를 주\
+        입합니다."
+      scheme: bearer
+      bearerFormat: JWT
+    userUuid:
+      type: apiKey
+      description: video 서비스 직접 호출 시 로그인 사용자 UUID. 없으면 401.
+      name: X-User-UUID
+      in: header
