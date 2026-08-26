@@ -9,7 +9,7 @@ CREATE TABLE video (
     file_path             VARCHAR(255) NOT NULL COMMENT 'Relative S3 path — raw video',
     processed_path        VARCHAR(255) NULL     COMMENT 'Relative S3 path — download-ready video',
     file_size_byte        BIGINT       NOT NULL COMMENT 'File size in bytes',
-    thumbnail_image_path  VARCHAR(255) NULL     COMMENT 'Relative S3 path — NULL until thumbnail Lambda callback',
+    thumbnail_image_path  VARCHAR(255) NULL     COMMENT 'Processed bucket relative path — NULL until thumbnail Lambda callback (thumbnail/{uuid}.jpg)',
     created_at            DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Upload time',
     updated_at            DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     deleted_at            DATETIME(6)  NULL,

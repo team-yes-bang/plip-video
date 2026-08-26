@@ -51,6 +51,7 @@ plip:
       raw-video-prefix: videos/raw/
       processed-video-prefix: videos/processed/
       image-prefix: images/
+      thumbnail-prefix: thumbnail/
       cdn-base-url: ${AWS_CDN_BASE_URL:}
     sqs:
       video-processing-queue-url: ${AWS_SQS_VIDEO_PROCESSING_QUEUE_URL:}
@@ -59,7 +60,7 @@ plip:
 
 app:
   kafka:
-    enabled: ${APP_KAFKA_ENABLED:false}
+    enabled: ${APP_KAFKA_ENABLED:true}
     topics:
       video-uploaded: ${APP_KAFKA_TOPICS_VIDEO_UPLOADED:video.uploaded}
       diary-video-uploaded: ${APP_KAFKA_TOPICS_DIARY_VIDEO_UPLOADED:diary.video.uploaded}
