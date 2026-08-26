@@ -7,79 +7,236 @@ servers:
 - url: http://localhost
   description: Generated server url
 tags:
+- name: Video
+  description: 5초 영상 Presigned 업로드·조회 API
 - name: Health
   description: 서비스 상태 확인
-- name: Video
-  description: 5초 영상 촬영/업로드 API (스켈레톤 — CRUD 단계에서 재검토)
 paths:
-  /api/videos:
+  /api/v1/videos/{videoUuid}/destination:
     post:
       tags:
       - Video
-      summary: 영상 업로드
+      summary: 영상 destination publish
       description: |
-        영상 파일 업로드 후 DB·S3에 저장하고 videoUuid 를 반환합니다.
-        Agit/Diary 등록은 각 서비스가 반환된 videoUuid 로 처리합니다.
-        - 캡션은 선택 (없으면 null)
-        - recordedAt 은 영상 중앙 HH:mm 오버레이용
-      operationId: register
+        complete 이후 토픽/다이어리 테마에 영상을 비동기 부착 요청합니다.
+        - kind=TOPIC → Kafka `video.uploaded`
+        - kind=DIARY → Kafka `diary.video.uploaded`
+        - actor는 Gateway X-User-UUID (video 소유자와 일치해야 함)
+        - 상세: docs/api/video-destination.v1.md
+      operationId: publishDestination
       parameters:
-      - name: userUuid
-        in: query
-        description: 업로더 UUID
+      - name: videoUuid
+        in: path
+        description: complete된 영상 UUID
         required: true
         schema:
           type: string
           format: uuid
-      - name: caption
-        in: query
-        description: 캡션 (선택)
-        required: false
-        schema:
-          type: string
-      - name: recordedAt
-        in: query
-        description: 촬영/업로드 시각
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoDestinationRequest"
+        required: true
+      responses:
+        "401":
+          description: Unauthorized
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        "202":
+          description: Kafka produce 접수
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/VideoDestinationResponse"
+        "400":
+          description: kind/UUID 필드 오류
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/VideoDestinationResponse"
+        "403":
+          description: video 소유자 불일치
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/VideoDestinationResponse"
+        "404":
+          description: video 미존재 (complete 안 됨)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/VideoDestinationResponse"
+      security:
+      - bearerAuth: []
+      - userUuid: []
+  /api/v1/videos/{videoUuid}/complete:
+    post:
+      tags:
+      - Video
+      summary: 영상 업로드 complete
+      description: |
+        S3 업로드 완료 후 메타데이터를 DB에 저장합니다.
+        - HeadObject로 raw 파일 존재·용량 검증
+        - thumbnail_image_path = null (Lambda callback 대기)
+        - overlayTime = created_at KST HH:mm
+        - 업로더는 Gateway X-User-UUID (헤더 위조 방지)
+      operationId: complete
+      parameters:
+      - name: videoUuid
+        in: path
+        description: upload-url에서 발급된 video UUID
         required: true
         schema:
           type: string
-          format: date-time
+          format: uuid
       requestBody:
         content:
-          multipart/form-data:
+          application/json:
             schema:
-              type: object
-              properties:
-                videoFile:
-                  type: string
-                  format: binary
-                  description: 영상 파일 (최대 5초)
-              required:
-              - videoFile
+              $ref: "#/components/schemas/VideoCompleteRequest"
       responses:
+        "401":
+          description: Unauthorized
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/VideoCompleteResponse"
+      security:
+      - bearerAuth: []
+      - userUuid: []
+  /api/v1/videos/upload-url:
+    post:
+      tags:
+      - Video
+      summary: Presigned upload URL 발급
+      description: |
+        영상 UUID와 S3 Presigned PUT URL을 발급합니다.
+        - DB INSERT 없음 (complete에서 저장)
+        - rawS3Key = videos/raw/{videoUuid}.mp4
+        - contentLengthBytes 필수: 서명에 Content-Length 포함 → 초과 업로드 불가
+        - Gateway X-User-UUID 필수
+      operationId: issueUploadUrl
+      parameters:
+      - name: contentType
+        in: query
+        description: "Content-Type (선택, 기본 video/mp4)"
+        required: false
+        schema:
+          type: string
+      - name: contentLengthBytes
+        in: query
+        description: "업로드할 바이트 수 (필수, maxFileSizeBytes 이하)"
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "401":
+          description: Unauthorized
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
         "201":
           description: Created
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/VideoRegisterResponse"
-  /api/videos/{videoUuid}/download-processing:
-    post:
+                $ref: "#/components/schemas/VideoUploadUrlResponse"
+      security:
+      - bearerAuth: []
+      - userUuid: []
+  /api/v1/videos/{videoUuid}:
+    get:
       tags:
       - Video
-      summary: 다운로드용 영상 가공 요청
-      description: SQS → Lambda(ffmpeg) 파이프라인을 트리거합니다. (스켈레톤)
-      operationId: requestDownloadProcessing
+      summary: 영상 상세 조회
+      description: |
+        피드 재생용 영상 메타데이터와 raw Presigned GET URL을 반환합니다.
+        - rawPlaybackUrl: raw bucket Presigned GET (TTL 3h)
+        - thumbnailUrl: Lambda callback 전 null
+        - overlayTime: created_at KST HH:mm (프론트 UI 오버레이)
+        - downloadReady: processed_path 존재 여부
+        - Gateway X-User-UUID 필수 (익명 Presigned URL 발급 차단)
+      operationId: getVideo
       parameters:
       - name: videoUuid
         in: path
+        description: 영상 UUID
         required: true
         schema:
           type: string
           format: uuid
       responses:
-        "202":
-          description: Accepted
+        "401":
+          description: Unauthorized
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/VideoDetailResponse"
+      security:
+      - bearerAuth: []
+      - userUuid: []
+  /api/v1/videos/{videoUuid}/download-url:
+    get:
+      tags:
+      - Video
+      summary: 다운로드 URL 조회
+      description: |
+        가공본(processed) CloudFront URL을 반환합니다.
+        - processed_path 없음 → 202 Accepted + Retry-After + PROCESSING body
+        - processed_path 있음 → 200 OK + downloadUrl
+        - Gateway X-User-UUID 필수
+      operationId: getDownloadUrl
+      parameters:
+      - name: videoUuid
+        in: path
+        description: 영상 UUID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "401":
+          description: Unauthorized
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+      security:
+      - bearerAuth: []
+      - userUuid: []
   /api/test:
     get:
       tags:
@@ -87,6 +244,14 @@ paths:
       summary: 헬스체크
       operationId: test
       responses:
+        "401":
+          description: Unauthorized
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
         "200":
           description: OK
           content:
@@ -95,29 +260,135 @@ paths:
                 type: string
 components:
   schemas:
-    VideoRegisterResponse:
+    VideoDestinationKind:
+      type: string
+      description: 영상 부착 대상 종류
+      enum:
+      - TOPIC
+      - DIARY
+    VideoDestinationRequest:
       type: object
-      description: 영상 등록 응답
+      description: 영상 destination publish 요청 (complete 이후)
+      properties:
+        kind:
+          $ref: "#/components/schemas/VideoDestinationKind"
+          description: 부착 대상 종류
+          example: TOPIC
+        topicUuid:
+          type: string
+          format: uuid
+          description: 아지트 토픽 UUID (kind=TOPIC 필수)
+          example: 0190abcd-1111-7abc-def0-123456789abc
+        themeUuid:
+          type: string
+          format: uuid
+          description: 다이어리 테마 UUID (kind=DIARY 필수). numeric themeId 아님
+          example: 01912345-6789-7abc-def0-123456789abc
+        agitUuid:
+          type: string
+          format: uuid
+          description: "아지트 UUID (kind=TOPIC 선택, 프론트 컨텍스트)"
+          example: 018f3f6e-8e2a-7b3c-9d4e-5f6a7b8c9d0e
+        caption:
+          type: string
+          description: "캡션 (선택, 없으면 complete 시 저장값 사용)"
+      required:
+      - kind
+    VideoDestinationResponse:
+      type: object
+      description: 영상 destination publish 응답
       properties:
         videoUuid:
           type: string
           format: uuid
-          description: 영상 UUID — Agit/Diary 등 타 서비스에서 참조
+          description: 영상 UUID
+        status:
+          type: string
+          description: Kafka produce 요청 접수 상태
+          example: PUBLISHED
+    VideoCompleteRequest:
+      type: object
+      description: 영상 업로드 complete 요청
+      properties:
+        caption:
+          type: string
+          description: 캡션 (선택)
+    VideoCompleteResponse:
+      type: object
+      description: 영상 업로드 complete 응답
+      properties:
+        videoUuid:
+          type: string
+          format: uuid
+          description: 영상 UUID
         caption:
           type: string
           description: 캡션 (없으면 null)
-        recordedAt:
+        createdAt:
           type: string
           format: date-time
-          description: 촬영/업로드 시각 (HH:mm 오버레이용)
+          description: 업로드 시각 (created_at)
+        overlayTime:
+          type: string
+          description: "HH:mm 오버레이용 시각 (KST, created_at 기준)"
+    VideoUploadUrlResponse:
+      type: object
+      description: Presigned URL 발급 응답
+      properties:
+        videoUuid:
+          type: string
+          format: uuid
+          description: 영상 UUID (UUIDv7)
+        rawS3Key:
+          type: string
+          description: S3 object key (raw bucket)
+        uploadUrl:
+          type: string
+          description: Presigned PUT URL
+        expiresAt:
+          type: string
+          format: date-time
+          description: Presigned URL 만료 시각 (UTC)
+    VideoDetailResponse:
+      type: object
+      description: 영상 상세 조회 응답 (피드 재생용)
+      properties:
+        videoUuid:
+          type: string
+          format: uuid
+          description: 영상 UUID
+        userUuid:
+          type: string
+          format: uuid
+          description: 업로더 UUID
+        caption:
+          type: string
+          description: 캡션 (없으면 null)
+        createdAt:
+          type: string
+          format: date-time
+          description: 업로드 시각 (created_at)
+        rawPlaybackUrl:
+          type: string
+          description: 원본(raw) 영상 Presigned GET URL (TTL 3h)
         thumbnailUrl:
           type: string
-          description: 썸네일 URL
-        processingStatus:
+          description: 썸네일 URL (Lambda callback 전 null)
+        overlayTime:
           type: string
-          description: 다운로드 가공 상태
-          enum:
-          - PENDING
-          - PROCESSING
-          - READY
-          - FAILED
+          description: "HH:mm 오버레이용 시각 (KST, created_at 기준)"
+        downloadReady:
+          type: boolean
+          description: 다운로드용 가공본 준비 여부 (processed_path 존재)
+  securitySchemes:
+    bearerAuth:
+      type: http
+      description: "Gateway JWT. 클라이언트는 Bearer를 전달하고, Gateway가 검증 후 X-User-UUID를 주\
+        입합니다."
+      scheme: bearer
+      bearerFormat: JWT
+    userUuid:
+      type: apiKey
+      description: video 서비스 직접 호출 시 로그인 사용자 UUID. 없으면 401.
+      name: X-User-UUID
+      in: header

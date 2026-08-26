@@ -3,12 +3,11 @@ package com.plip.video.adapter.out.persistence.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -24,7 +23,10 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EntityListeners(AuditingEntityListener.class)
 @Entity
-@Table(name = "video")
+@Table(
+		name = "video",
+		uniqueConstraints = @UniqueConstraint(name = "uk_video_uuid", columnNames = "video_uuid")
+)
 public class VideoEntity {
 
 	@Id
@@ -43,21 +45,14 @@ public class VideoEntity {
 	@Column(name = "file_path", nullable = false, length = 255)
 	private String filePath;
 
+	@Column(name = "processed_path", length = 255)
+	private String processedPath;
+
 	@Column(name = "file_size_byte", nullable = false)
 	private long fileSizeByte;
 
-	@Column(name = "thumbnail_image_path", nullable = false, length = 255)
+	@Column(name = "thumbnail_image_path", length = 255)
 	private String thumbnailImagePath;
-
-	@Column(name = "recorded_at", nullable = false)
-	private LocalDateTime recordedAt;
-
-	@Enumerated(EnumType.STRING)
-	@Column(name = "processing_status", nullable = false, length = 20)
-	private com.plip.video.domain.model.enums.VideoProcessingStatus processingStatus;
-
-	@Column(name = "processed_file_path", length = 255)
-	private String processedFilePath;
 
 	@CreatedDate
 	@Column(name = "created_at", nullable = false, updatable = false)
@@ -77,10 +72,7 @@ public class VideoEntity {
 			String caption,
 			String filePath,
 			long fileSizeByte,
-			String thumbnailImagePath,
-			LocalDateTime recordedAt,
-			com.plip.video.domain.model.enums.VideoProcessingStatus processingStatus,
-			String processedFilePath
+			String thumbnailImagePath
 	) {
 		this.videoUuid = videoUuid;
 		this.userUuid = userUuid;
@@ -88,25 +80,17 @@ public class VideoEntity {
 		this.filePath = filePath;
 		this.fileSizeByte = fileSizeByte;
 		this.thumbnailImagePath = thumbnailImagePath;
-		this.recordedAt = recordedAt;
-		this.processingStatus = processingStatus;
-		this.processedFilePath = processedFilePath;
-	}
-
-	public void markProcessing() {
-		this.processingStatus = com.plip.video.domain.model.enums.VideoProcessingStatus.PROCESSING;
-	}
-
-	public void markReady(String processedFilePath) {
-		this.processingStatus = com.plip.video.domain.model.enums.VideoProcessingStatus.READY;
-		this.processedFilePath = processedFilePath;
-	}
-
-	public void markFailed() {
-		this.processingStatus = com.plip.video.domain.model.enums.VideoProcessingStatus.FAILED;
 	}
 
 	public void softDelete() {
 		this.deletedAt = LocalDateTime.now();
+	}
+
+	public void updateThumbnailImagePath(String thumbnailImagePath) {
+		this.thumbnailImagePath = thumbnailImagePath;
+	}
+
+	public void updateProcessedPath(String processedPath) {
+		this.processedPath = processedPath;
 	}
 }

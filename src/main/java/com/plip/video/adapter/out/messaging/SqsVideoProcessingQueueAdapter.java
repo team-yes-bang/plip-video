@@ -1,5 +1,7 @@
 package com.plip.video.adapter.out.messaging;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.plip.video.application.port.out.VideoProcessingQueuePort;
 import com.plip.video.global.config.AwsProperties;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +11,8 @@ import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -19,19 +23,43 @@ public class SqsVideoProcessingQueueAdapter implements VideoProcessingQueuePort 
 
 	private final SqsClient sqsClient;
 	private final AwsProperties awsProperties;
+	private final ObjectMapper objectMapper;
 
 	@Override
-	public void enqueueForDownloadProcessing(UUID videoUuid, String rawVideoPath) {
-		String body = """
-				{"videoUuid":"%s","rawVideoPath":"%s"}
-				""".formatted(videoUuid, rawVideoPath).trim();
+	public void enqueueVideoProcessing(
+			UUID videoUuid,
+			String rawS3Key,
+			String caption,
+			String overlayTime,
+			int maxDurationSeconds
+	) {
+		String queueUrl = awsProperties.sqs().videoProcessingQueueUrl();
+		if (queueUrl == null || queueUrl.isBlank()) {
+			log.warn("Video processing SQS queue URL is not configured — skip enqueue for {}", videoUuid);
+			return;
+		}
 
-		SendMessageRequest request = SendMessageRequest.builder()
-				.queueUrl(awsProperties.sqs().videoProcessingQueueUrl())
-				.messageBody(body)
-				.build();
+		Map<String, Object> body = new LinkedHashMap<>();
+		body.put("videoUuid", videoUuid.toString());
+		body.put("rawS3Key", rawS3Key);
+		body.put("maxDurationSeconds", maxDurationSeconds);
+		if (caption != null && !caption.isBlank()) {
+			body.put("caption", caption);
+		}
+		if (overlayTime != null && !overlayTime.isBlank()) {
+			body.put("overlayTime", overlayTime);
+		}
 
-		sqsClient.sendMessage(request);
-		log.info("Enqueued video processing job for {}", videoUuid);
+		try {
+			SendMessageRequest request = SendMessageRequest.builder()
+					.queueUrl(queueUrl)
+					.messageBody(objectMapper.writeValueAsString(body))
+					.build();
+
+			sqsClient.sendMessage(request);
+			log.info("Enqueued video processing job for {}", videoUuid);
+		} catch (JsonProcessingException e) {
+			throw new IllegalStateException("Failed to serialize SQS message", e);
+		}
 	}
 }

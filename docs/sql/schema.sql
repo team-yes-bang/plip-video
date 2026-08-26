@@ -1,19 +1,16 @@
-# DDL for plip_video microservice.
-# ERD 기준 video / image 테이블 + 다운로드 가공(processing) 컬럼.
+# DDL for plip_video microservice (ERD 기준).
 # 등록 위치(diary/agit)는 Agit/Diary 서비스가 video_uuid 로 참조 — video 테이블에 저장하지 않음.
 
 CREATE TABLE video (
-    id                    BIGINT       NOT NULL AUTO_INCREMENT,
+    id                    BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'video_id (PK)',
     video_uuid            BINARY(16)   NOT NULL COMMENT 'UUIDv7',
-    user_uuid             BINARY(16)   NOT NULL COMMENT 'Uploader UUID',
+    user_uuid             BINARY(16)   NOT NULL COMMENT 'Uploader UUID (UUIDv7)',
     caption               VARCHAR(100) NULL     COMMENT 'Short text input (optional)',
     file_path             VARCHAR(255) NOT NULL COMMENT 'Relative S3 path — raw video',
+    processed_path        VARCHAR(255) NULL     COMMENT 'Relative S3 path — download-ready video',
     file_size_byte        BIGINT       NOT NULL COMMENT 'File size in bytes',
-    thumbnail_image_path  VARCHAR(255) NOT NULL COMMENT 'Relative S3 path — first-frame thumbnail',
-    recorded_at           DATETIME(6)  NOT NULL COMMENT 'Capture time (HH:mm overlay on video center)',
-    processing_status     VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING | PROCESSING | READY | FAILED',
-    processed_file_path   VARCHAR(255) NULL     COMMENT 'Relative S3 path — processed video for download',
-    created_at            DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    thumbnail_image_path  VARCHAR(255) NULL     COMMENT 'Processed bucket relative path — NULL until thumbnail Lambda callback (thumbnail/{uuid}.jpg)',
+    created_at            DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'Upload time',
     updated_at            DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     deleted_at            DATETIME(6)  NULL,
     PRIMARY KEY (id),
@@ -36,3 +33,38 @@ CREATE TABLE image (
     INDEX idx_image_type_status (type, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Master image table (ERD). Profile/Product path는 각 서비스 DB';
+
+CREATE TABLE video_processing_outbox (
+    id                BIGINT       NOT NULL AUTO_INCREMENT,
+    video_uuid        BINARY(16)   NOT NULL COMMENT 'Target video UUID',
+    event_type        VARCHAR(32)  NOT NULL COMMENT 'THUMBNAIL_INVOKE | SQS_ENQUEUE',
+    payload_json      JSON         NOT NULL,
+    status            VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING | SENT | FAILED',
+    attempt_count     INT          NOT NULL DEFAULT 0,
+    next_attempt_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    created_at        DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    sent_at           DATETIME(6)  NULL,
+    last_error        VARCHAR(512) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_outbox_video_event (video_uuid, event_type),
+    INDEX idx_outbox_pending (status, next_attempt_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Durable outbox for post-complete Lambda/SQS dispatch';
+
+CREATE TABLE video_destination_outbox (
+    id                BIGINT       NOT NULL AUTO_INCREMENT,
+    video_uuid        BINARY(16)   NOT NULL,
+    event_type        VARCHAR(32)  NOT NULL COMMENT 'TOPIC_VIDEO_UPLOADED | DIARY_VIDEO_UPLOADED',
+    destination_uuid  BINARY(16)   NOT NULL COMMENT 'topicUuid or themeUuid',
+    payload_json      JSON         NOT NULL,
+    status            VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING | SENT | FAILED',
+    attempt_count     INT          NOT NULL DEFAULT 0,
+    next_attempt_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    created_at        DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    sent_at           DATETIME(6)  NULL,
+    last_error        VARCHAR(512) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_destination_outbox (video_uuid, event_type, destination_uuid),
+    INDEX idx_destination_outbox_pending (status, next_attempt_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Durable outbox for destination Kafka events';

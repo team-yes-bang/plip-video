@@ -13,6 +13,30 @@ eureka:
   client:
     enabled: false
 
+app:
+  kafka:
+    enabled: false
+
 plip:
+  gateway:
+    hmac:
+      secret: ""
+      max-skew-seconds: 300
+  internal:
+    api-key: test-internal-key
+  video:
+    outbox:
+      relay-batch-size: 20
+      max-attempts: 5
+      relay-interval-ms: 60000
+      retry-backoff-ms: 1000
   aws:
     enabled: false
+    presigned-url-ttl-seconds: 10800
+    s3:
+      raw-bucket: test-raw
+      processed-bucket: test-processed
+    sqs:
+      video-processing-queue-url: https://sqs.example.com/test
+    lambda:
+      thumbnail-function-arn: arn:aws:lambda:ap-northeast-2:123:function:test-thumb

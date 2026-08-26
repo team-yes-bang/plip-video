@@ -1,15 +1,16 @@
 package com.plip.video.application.port.in.dto;
 
-import com.plip.video.domain.model.enums.VideoProcessingStatus;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record VideoRegisterResult(
+public record VideoDetailResult(
 		UUID videoUuid,
+		UUID userUuid,
 		String caption,
-		LocalDateTime recordedAt,
+		LocalDateTime createdAt,
+		String rawPlaybackUrl,
 		String thumbnailUrl,
-		VideoProcessingStatus processingStatus
+		String overlayTime,
+		boolean downloadReady
 ) {
 }

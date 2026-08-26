@@ -5,7 +5,6 @@ import com.plip.video.adapter.out.persistence.mapper.VideoEntityMapper;
 import com.plip.video.adapter.out.persistence.repository.VideoJpaRepository;
 import com.plip.video.application.port.out.VideoPersistencePort;
 import com.plip.video.domain.model.Video;
-import com.plip.video.domain.model.enums.VideoProcessingStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -33,14 +32,20 @@ public class VideoPersistenceAdapter implements VideoPersistencePort {
 	}
 
 	@Override
-	public void updateProcessingStatus(UUID videoUuid, VideoProcessingStatus status, String processedFilePath) {
-		videoJpaRepository.findByVideoUuidAndDeletedAtIsNull(videoUuid).ifPresent(entity -> {
-			switch (status) {
-				case PROCESSING -> entity.markProcessing();
-				case FAILED -> entity.markFailed();
-				case READY -> entity.markReady(processedFilePath);
-				default -> { /* PENDING — no entity transition */ }
-			}
-		});
+	public Optional<Video> updateThumbnailPath(UUID videoUuid, String thumbnailImagePath) {
+		return videoJpaRepository.findByVideoUuidAndDeletedAtIsNull(videoUuid)
+				.map(entity -> {
+					entity.updateThumbnailImagePath(thumbnailImagePath);
+					return videoEntityMapper.toDomain(entity);
+				});
+	}
+
+	@Override
+	public Optional<Video> updateProcessedPath(UUID videoUuid, String processedPath) {
+		return videoJpaRepository.findByVideoUuidAndDeletedAtIsNull(videoUuid)
+				.map(entity -> {
+					entity.updateProcessedPath(processedPath);
+					return videoEntityMapper.toDomain(entity);
+				});
 	}
 }

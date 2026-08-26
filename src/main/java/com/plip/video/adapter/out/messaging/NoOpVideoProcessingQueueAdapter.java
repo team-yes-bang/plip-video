@@ -13,7 +13,20 @@ import java.util.UUID;
 public class NoOpVideoProcessingQueueAdapter implements VideoProcessingQueuePort {
 
 	@Override
-	public void enqueueForDownloadProcessing(UUID videoUuid, String rawVideoPath) {
-		log.warn("AWS disabled — stub enqueue video processing: videoUuid={}, path={}", videoUuid, rawVideoPath);
+	public void enqueueVideoProcessing(
+			UUID videoUuid,
+			String rawS3Key,
+			String caption,
+			String overlayTime,
+			int maxDurationSeconds
+	) {
+		log.warn(
+				"AWS disabled — stub enqueue video processing: videoUuid={}, rawS3Key={}, caption={}, overlayTime={}, maxDurationSeconds={}",
+				videoUuid,
+				rawS3Key,
+				caption,
+				overlayTime,
+				maxDurationSeconds
+		);
 	}
 }

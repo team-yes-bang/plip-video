@@ -1,0 +1,78 @@
+name: Push to ECR
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: 334687118442.dkr.ecr.ap-northeast-2.amazonaws.com
+  IMAGE_NAME: plip-video
+  MANIFEST_REPO: team-yes-bang/plip-k8s-manifests
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon
+
+  push-ecr:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push
+        run: |
+          docker build --platform linux/amd64 \
+            -t $ECR_REGISTRY/$IMAGE_NAME:${{ github.sha }} \
+            -t $ECR_REGISTRY/$IMAGE_NAME:latest \
+            .
+          docker push $ECR_REGISTRY/$IMAGE_NAME:${{ github.sha }}
+          docker push $ECR_REGISTRY/$IMAGE_NAME:latest
+
+  update-manifest:
+    needs: push-ecr
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update plip-k8s-manifests
+        env:
+          MANIFEST_TOKEN: ${{ secrets.MANIFEST_REPO_PAT }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          SERVICE="${IMAGE_NAME#plip-}"
+          git clone "https://x-access-token:${MANIFEST_TOKEN}@github.com/${MANIFEST_REPO}.git" manifests
+          cd manifests
+          git checkout main
+          git pull --rebase
+          FILE="apps/${SERVICE}/deployment.yaml"
+          sed -i "s|${IMAGE_NAME}:.*|${IMAGE_NAME}:${IMAGE_TAG}|" "$FILE"
+          git config user.email "ci@plip.life"
+          git config user.name "github-actions[bot]"
+          git diff --quiet && exit 0
+          git commit -am "deploy ${IMAGE_NAME} ${IMAGE_TAG}"
+          git push

@@ -1,0 +1,48 @@
+# K3s prod — 구조 SSOT. 실제 값은 ConfigMap/Secret env 로 주입.
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+eureka:
+  client:
+    enabled: false
+
+app:
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:true}
+    topics:
+      video-uploaded: ${APP_KAFKA_TOPICS_VIDEO_UPLOADED:video.uploaded}
+      diary-video-uploaded: ${APP_KAFKA_TOPICS_DIARY_VIDEO_UPLOADED:diary.video.uploaded}
+
+plip:
+  gateway:
+    hmac:
+      secret: ${GATEWAY_HMAC_SECRET:}
+      max-skew-seconds: ${GATEWAY_HMAC_MAX_SKEW_SECONDS:300}
+  internal:
+    api-key: ${INTERNAL_API_KEY}
+  video:
+    outbox:
+      relay-batch-size: ${VIDEO_OUTBOX_RELAY_BATCH_SIZE:20}
+      max-attempts: ${VIDEO_OUTBOX_MAX_ATTEMPTS:5}
+      relay-interval-ms: ${VIDEO_OUTBOX_RELAY_INTERVAL_MS:5000}
+      retry-backoff-ms: ${VIDEO_OUTBOX_RETRY_BACKOFF_MS:1000}
+  aws:
+    enabled: true
+    region: ${AWS_REGION}
+    presigned-url-ttl-seconds: ${AWS_PRESIGNED_URL_TTL_SECONDS:10800}
+    s3:
+      raw-bucket: ${AWS_S3_RAW_BUCKET}
+      processed-bucket: ${AWS_S3_PROCESSED_BUCKET}
+      cdn-base-url: ${AWS_CDN_BASE_URL}
+    sqs:
+      video-processing-queue-url: ${AWS_SQS_VIDEO_PROCESSING_QUEUE_URL}
+    lambda:
+      thumbnail-function-arn: ${AWS_LAMBDA_THUMBNAIL_ARN}

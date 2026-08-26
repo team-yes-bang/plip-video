@@ -1,13 +1,20 @@
 package com.plip.video.application.port.out;
 
-import java.io.InputStream;
 import java.util.UUID;
 
 public interface StoragePort {
 
-	StoredObject uploadRawVideo(UUID videoUuid, InputStream content, long contentLength, String contentType);
+	String buildRawS3Key(UUID videoUuid);
 
-	StoredObject uploadThumbnail(UUID videoUuid, InputStream content, long contentLength, String contentType);
+	/**
+	 * Presigned PUT. {@code contentLengthBytes} is signed so the client must upload
+	 * exactly that many bytes (cannot exceed the size validated at issue time).
+	 */
+	PresignedUploadUrl createPresignedPutUrl(UUID videoUuid, String contentType, long contentLengthBytes);
+
+	StoredObject headRawObject(String rawS3Key);
+
+	String createPresignedRawPlaybackUrl(String rawS3Key);
 
 	String resolvePublicUrl(String relativePath);
 }
