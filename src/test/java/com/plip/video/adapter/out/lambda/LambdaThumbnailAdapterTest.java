@@ -76,6 +76,7 @@ class LambdaThumbnailAdapterTest {
 						"videos/raw/",
 						"videos/processed/",
 						"images/",
+						"thumbnail/",
 						"https://cdn.example.com"
 				),
 				new AwsProperties.SqsProperties("https://sqs.example.com/queue"),

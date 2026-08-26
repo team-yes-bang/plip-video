@@ -62,7 +62,7 @@ class InternalVideoControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(
 								new com.plip.video.adapter.in.web.dto.InternalUpdateThumbnailRequest(
-										"images/thumbnails/test.jpg"
+										"thumbnail/test.jpg"
 								))))
 				.andExpect(status().isUnauthorized());
 	}
@@ -74,11 +74,11 @@ class InternalVideoControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(
 								new com.plip.video.adapter.in.web.dto.InternalUpdateThumbnailRequest(
-										"images/thumbnails/test.jpg"
+										"thumbnail/test.jpg"
 								))))
 				.andExpect(status().isNoContent());
 
-		verify(videoUseCase).updateThumbnail(eq(VIDEO_UUID), eq("images/thumbnails/test.jpg"));
+		verify(videoUseCase).updateThumbnail(eq(VIDEO_UUID), eq("thumbnail/test.jpg"));
 	}
 
 	@Test

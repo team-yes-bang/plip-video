@@ -51,9 +51,46 @@ gateway Deployment·video Secret은 이미 `GATEWAY_HMAC_SECRET`을 읽도록 �
 
 상세: `docs/api/cross-service-requests.md`
 
+## Phase 1b thumbnail Lambda
+
+- 코드: `terraform/lambda/thumbnail/handler.py` (FFmpeg 첫 프레임 + processed S3 + callback)
+- 배포: `terraform/lambda/thumbnail/deploy.sh`
+- **ECR policy (admin 1회)**: `terraform/lambda/thumbnail/set-ecr-policy.sh` — `ecr:SetRepositoryPolicy` 권한 필요
+- K8s: `infra/ingress/fo-ingress.yaml` (`/internal/videos`), `infra/network-policy/msa-ingress.yaml` (Traefik)
+- E2E: 아래 Thumbnail 테스트
+
+### Thumbnail Lambda 배포 순서
+
+```bash
+# 1. ECR import (deploy.sh가 repo를 먼저 만든 경우)
+cd terraform
+terraform import 'aws_ecr_repository.video_thumbnail[0]' plip-video-thumbnail
+
+# 2. Admin: ECR → Lambda pull policy (teamYES 권한 없으면 root/admin 계정)
+./lambda/thumbnail/set-ecr-policy.sh
+
+# 3. Image Lambda 생성
+terraform apply -target='aws_lambda_function.thumbnail[0]'
+
+# 4. 이미지 빌드/푸시/갱신
+cd lambda/thumbnail && ./deploy.sh
+```
+
 ## 아직 코드로 미완 (낮은 우선)
 
-- Thumbnail Lambda: S3 + FFmpeg 첫 프레임 (Phase 1b skeleton)
+- (없음 — thumbnail Phase 1b 구현 완료, burn-in은 Phase 2)
+
+## Thumbnail E2E 테스트
+
+1. `INTERNAL_API_KEY` SSM ↔ video Secret 동기화 (phase2-e2e-test.md 0단계)
+2. `kubectl apply -f plip-k8s-manifests/infra/ingress/fo-ingress.yaml`
+3. `kubectl apply -f plip-k8s-manifests/infra/network-policy/msa-ingress.yaml`
+4. 영상 upload → complete
+5. 확인:
+   - Lambda CloudWatch: `thumbnail start`, `Thumbnail callback succeeded`
+   - S3 processed: `aws s3 ls s3://<processed-bucket>/thumbnail/`
+   - DB: `SELECT thumbnail_image_path FROM video ORDER BY created_at DESC LIMIT 1;`
+   - API: `GET /api/videos/{uuid}` → `thumbnailUrl` (CDN)
 
 ## Phase 2 burn-in Lambda
 

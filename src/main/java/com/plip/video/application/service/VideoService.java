@@ -170,7 +170,7 @@ public class VideoService implements VideoUseCase {
 	@Override
 	@Transactional
 	public void updateThumbnail(UUID videoUuid, String thumbnailS3Key) {
-		String normalizedPath = normalizeCallbackPath(thumbnailS3Key, "thumbnailS3Key", awsProperties.s3().imagePrefix());
+		String normalizedPath = normalizeCallbackPath(thumbnailS3Key, "thumbnailS3Key", awsProperties.s3().thumbnailPrefix());
 		videoPersistencePort.updateThumbnailPath(videoUuid, normalizedPath)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Video not found: " + videoUuid));
 	}

@@ -83,6 +83,7 @@ class VideoServiceTest {
 				"videos/raw/",
 				"videos/processed/",
 				"images/",
+				"thumbnail/",
 				"https://cdn.example"
 		);
 		given(videoProperties.allowedContentTypes()).willReturn(List.of("video/mp4", "video/quicktime"));
@@ -215,7 +216,7 @@ class VideoServiceTest {
 	void getVideoReturnsFeedDetail() {
 		UUID videoUuid = UUID.fromString("0195dddd-bbbb-7ddd-dddd-dddddddddddd");
 		String rawS3Key = "videos/raw/" + videoUuid + ".mp4";
-		String thumbnailPath = "images/thumbnails/" + videoUuid + ".jpg";
+		String thumbnailPath = "thumbnail/" + videoUuid + ".jpg";
 
 		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.of(
 				Video.builder()
@@ -279,7 +280,7 @@ class VideoServiceTest {
 	@Test
 	void updateThumbnailUpdatesPath() {
 		UUID videoUuid = UUID.fromString("01951111-bbbb-7111-1111-111111111111");
-		String thumbnailPath = "images/thumbnails/" + videoUuid + ".jpg";
+		String thumbnailPath = "thumbnail/" + videoUuid + ".jpg";
 
 		given(videoPersistencePort.updateThumbnailPath(videoUuid, thumbnailPath)).willReturn(Optional.of(
 				Video.builder().videoUuid(videoUuid).thumbnailImagePath(thumbnailPath).build()
@@ -335,7 +336,7 @@ class VideoServiceTest {
 		UUID videoUuid = UUID.fromString("01953333-bbbb-7333-3333-333333333333");
 		given(videoPersistencePort.updateThumbnailPath(eq(videoUuid), any())).willReturn(Optional.empty());
 
-		assertThatThrownBy(() -> videoService.updateThumbnail(videoUuid, "images/thumbnails/x.jpg"))
+		assertThatThrownBy(() -> videoService.updateThumbnail(videoUuid, "thumbnail/x.jpg"))
 				.isInstanceOf(ResponseStatusException.class)
 				.hasMessageContaining("Video not found");
 	}

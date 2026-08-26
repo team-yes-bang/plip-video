@@ -88,6 +88,7 @@ class SqsVideoProcessingQueueAdapterTest {
 						"videos/raw/",
 						"videos/processed/",
 						"images/",
+						"thumbnail/",
 						"https://cdn.example.com"
 				),
 				new AwsProperties.SqsProperties(queueUrl),

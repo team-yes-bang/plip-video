@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 @Schema(description = "Lambda → thumbnail_image_path 갱신")
 public record InternalUpdateThumbnailRequest(
 		@NotBlank
-		@Schema(description = "S3 상대 경로", example = "images/thumbnails/{videoUuid}.jpg")
+		@Schema(description = "S3 상대 경로 (processed bucket)", example = "thumbnail/{videoUuid}.jpg")
 		String thumbnailS3Key
 ) {
 }

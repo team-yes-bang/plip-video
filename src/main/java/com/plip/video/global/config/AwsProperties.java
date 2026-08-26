@@ -18,6 +18,7 @@ public record AwsProperties(
 			String rawVideoPrefix,
 			String processedVideoPrefix,
 			String imagePrefix,
+			String thumbnailPrefix,
 			String cdnBaseUrl
 	) {
 	}
