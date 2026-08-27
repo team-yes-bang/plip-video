@@ -11,6 +11,8 @@ import com.plip.video.application.port.in.dto.VideoDownloadUrlProcessing;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlReady;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlResult;
 import com.plip.video.application.port.in.dto.VideoOwnershipResult;
+import com.plip.video.application.port.in.dto.VideoThumbnailUploadUrlCommand;
+import com.plip.video.application.port.in.dto.VideoThumbnailUploadUrlResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
 import com.plip.video.application.port.in.dto.VideoUploadUrlResult;
 import com.plip.video.application.port.out.StoragePort;
@@ -41,6 +43,8 @@ import java.util.UUID;
 public class VideoService implements VideoUseCase {
 
 	private static final String DEFAULT_CONTENT_TYPE = "video/mp4";
+	private static final String THUMBNAIL_CONTENT_TYPE = "image/jpeg";
+	private static final long MAX_THUMBNAIL_BYTES = 2L * 1024 * 1024;
 	private static final int DOWNLOAD_RETRY_AFTER_SECONDS = 3;
 	private static final String DOWNLOAD_PROCESSING_MESSAGE = "다운로드용 영상 가공 중입니다.";
 	private static final String DESTINATION_PUBLISHED_STATUS = "PUBLISHED";
@@ -67,6 +71,38 @@ public class VideoService implements VideoUseCase {
 
 		return new VideoUploadUrlResult(
 				videoUuid,
+				presigned.rawS3Key(),
+				presigned.uploadUrl(),
+				presigned.expiresAt()
+		);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public VideoThumbnailUploadUrlResult issueThumbnailUploadUrl(VideoThumbnailUploadUrlCommand command) {
+		if (command.videoUuid() == null) {
+			throw new IllegalArgumentException("videoUuid is required");
+		}
+		if (command.userUuid() == null) {
+			throw new IllegalArgumentException("userUuid is required");
+		}
+
+		videoPersistencePort.findByVideoUuid(command.videoUuid()).ifPresent(video -> {
+			if (!video.getUserUuid().equals(command.userUuid())) {
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Video owner mismatch");
+			}
+		});
+
+		String contentType = resolveThumbnailContentType(command.contentType());
+		long contentLengthBytes = requireValidThumbnailContentLength(command.contentLengthBytes());
+		var presigned = storagePort.createPresignedThumbnailPutUrl(
+				command.videoUuid(),
+				contentType,
+				contentLengthBytes
+		);
+
+		return new VideoThumbnailUploadUrlResult(
+				command.videoUuid(),
 				presigned.rawS3Key(),
 				presigned.uploadUrl(),
 				presigned.expiresAt()
@@ -114,7 +150,7 @@ public class VideoService implements VideoUseCase {
 					command.videoUuid(),
 					command.userUuid(),
 					caption,
-					null,
+					storagePort.resolvePublicUrl(video.getThumbnailImagePath()),
 					occurredAt
 			));
 		}
@@ -199,6 +235,7 @@ public class VideoService implements VideoUseCase {
 		String rawS3Key = storagePort.buildRawS3Key(command.videoUuid());
 		StoredObject rawObject = storagePort.headRawObject(rawS3Key);
 		validateFileSize(rawObject.sizeBytes());
+		String thumbnailS3Key = resolveUserThumbnailS3Key(command);
 
 		Video video = Video.builder()
 				.videoUuid(command.videoUuid())
@@ -206,6 +243,7 @@ public class VideoService implements VideoUseCase {
 				.caption(normalizeCaption(command.caption()))
 				.filePath(rawS3Key)
 				.fileSizeByte(rawObject.sizeBytes())
+				.thumbnailImagePath(thumbnailS3Key)
 				.build();
 
 		Video saved;
@@ -218,13 +256,23 @@ public class VideoService implements VideoUseCase {
 		}
 
 		String overlayTime = OverlayTimeFormatter.formatKstHhMm(saved.getCreatedAt());
-		videoProcessingOutboxPort.enqueueProcessingJobs(
-				saved.getVideoUuid(),
-				rawS3Key,
-				saved.getCaption(),
-				overlayTime,
-				videoProperties.maxDurationSeconds()
-		);
+		if (thumbnailS3Key == null) {
+			videoProcessingOutboxPort.enqueueProcessingJobs(
+					saved.getVideoUuid(),
+					rawS3Key,
+					saved.getCaption(),
+					overlayTime,
+					videoProperties.maxDurationSeconds()
+			);
+		} else {
+			videoProcessingOutboxPort.enqueueTranscodeJob(
+					saved.getVideoUuid(),
+					rawS3Key,
+					saved.getCaption(),
+					overlayTime,
+					videoProperties.maxDurationSeconds()
+			);
+		}
 		return toCompleteResult(saved, true);
 	}
 
@@ -260,6 +308,53 @@ public class VideoService implements VideoUseCase {
 		String resolved = (contentType == null || contentType.isBlank()) ? DEFAULT_CONTENT_TYPE : contentType.trim();
 		validateContentType(resolved);
 		return resolved;
+	}
+
+	private String resolveThumbnailContentType(String contentType) {
+		String resolved = (contentType == null || contentType.isBlank())
+				? THUMBNAIL_CONTENT_TYPE
+				: contentType.trim().toLowerCase();
+		if (!THUMBNAIL_CONTENT_TYPE.equals(resolved)) {
+			throw new IllegalArgumentException("Unsupported thumbnail content type: " + resolved);
+		}
+		return resolved;
+	}
+
+	private long requireValidThumbnailContentLength(Long contentLengthBytes) {
+		if (contentLengthBytes == null) {
+			throw new IllegalArgumentException("contentLengthBytes is required");
+		}
+		if (contentLengthBytes <= 0) {
+			throw new IllegalArgumentException("Thumbnail file is empty");
+		}
+		if (contentLengthBytes > MAX_THUMBNAIL_BYTES) {
+			throw new IllegalArgumentException("Thumbnail file exceeds max size");
+		}
+		return contentLengthBytes;
+	}
+
+	private String resolveUserThumbnailS3Key(VideoCompleteCommand command) {
+		String provided = command.thumbnailS3Key();
+		if (provided == null || provided.isBlank()) {
+			return null;
+		}
+		String normalized = normalizeCallbackPath(
+				provided,
+				"thumbnailS3Key",
+				awsProperties.s3().thumbnailPrefix()
+		);
+		String expected = storagePort.buildThumbnailS3Key(command.videoUuid());
+		if (!expected.equals(normalized)) {
+			throw new IllegalArgumentException("thumbnailS3Key does not match issued key");
+		}
+		StoredObject thumbnail = storagePort.headThumbnailObject(normalized);
+		if (thumbnail.sizeBytes() <= 0) {
+			throw new IllegalArgumentException("Thumbnail file is empty");
+		}
+		if (thumbnail.sizeBytes() > MAX_THUMBNAIL_BYTES) {
+			throw new IllegalArgumentException("Thumbnail file exceeds max size");
+		}
+		return normalized;
 	}
 
 	private void validateContentType(String contentType) {

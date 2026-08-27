@@ -12,4 +12,12 @@ public interface VideoProcessingOutboxPort {
 			int maxDurationSeconds
 	);
 
+	void enqueueTranscodeJob(
+			UUID videoUuid,
+			String rawS3Key,
+			String caption,
+			String overlayTime,
+			int maxDurationSeconds
+	);
+
 }

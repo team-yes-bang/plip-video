@@ -3,6 +3,7 @@ package com.plip.video.adapter.in.web;
 import com.plip.video.adapter.in.web.controller.VideoController;
 import com.plip.video.support.WebMvcSecurityTestConfig;
 import com.plip.video.application.port.in.VideoUseCase;
+import com.plip.video.application.port.in.dto.VideoThumbnailUploadUrlResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlResult;
 import com.plip.video.global.config.InternalProperties;
 import com.plip.video.global.exception.GlobalExceptionHandler;
@@ -55,6 +56,30 @@ class VideoControllerAuthTest {
 		);
 
 		mockMvc.perform(post("/api/v1/videos/upload-url")
+						.param("contentLengthBytes", "1024")
+						.with(AuthenticatedActorTestSupport.authenticated(USER_UUID)))
+				.andExpect(status().isCreated());
+	}
+
+	@Test
+	void issueThumbnailUploadUrlRequiresAuthentication() throws Exception {
+		mockMvc.perform(post("/api/v1/videos/{videoUuid}/thumbnail-upload-url", UUID.randomUUID())
+						.param("contentLengthBytes", "1024"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void issueThumbnailUploadUrlWithAuthenticatedActor() throws Exception {
+		given(videoUseCase.issueThumbnailUploadUrl(any())).willReturn(
+				new VideoThumbnailUploadUrlResult(
+						UUID.randomUUID(),
+						"thumbnail/test.jpg",
+						"https://example/thumb",
+						Instant.parse("2026-08-17T04:00:00Z")
+				)
+		);
+
+		mockMvc.perform(post("/api/v1/videos/{videoUuid}/thumbnail-upload-url", UUID.randomUUID())
 						.param("contentLengthBytes", "1024")
 						.with(AuthenticatedActorTestSupport.authenticated(USER_UUID)))
 				.andExpect(status().isCreated());

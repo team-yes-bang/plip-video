@@ -57,6 +57,37 @@ public class S3StorageAdapter implements StoragePort {
 	}
 
 	@Override
+	public String buildThumbnailS3Key(UUID videoUuid) {
+		return awsProperties.s3().thumbnailPrefix() + videoUuid + ".jpg";
+	}
+
+	@Override
+	public PresignedUploadUrl createPresignedThumbnailPutUrl(
+			UUID videoUuid,
+			String contentType,
+			long contentLengthBytes
+	) {
+		String thumbnailS3Key = buildThumbnailS3Key(videoUuid);
+		Duration ttl = Duration.ofSeconds(awsProperties.presignedUrlTtlSeconds());
+		Instant expiresAt = Instant.now().plus(ttl);
+
+		PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+				.bucket(awsProperties.s3().processedBucket())
+				.key(thumbnailS3Key)
+				.contentType(contentType)
+				.contentLength(contentLengthBytes)
+				.build();
+
+		PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+				.signatureDuration(ttl)
+				.putObjectRequest(putObjectRequest)
+				.build();
+
+		String uploadUrl = s3Presigner.presignPutObject(presignRequest).url().toString();
+		return new PresignedUploadUrl(thumbnailS3Key, uploadUrl, expiresAt);
+	}
+
+	@Override
 	public StoredObject headRawObject(String rawS3Key) {
 		try {
 			var response = s3Client.headObject(HeadObjectRequest.builder()
@@ -66,6 +97,19 @@ public class S3StorageAdapter implements StoragePort {
 			return new StoredObject(rawS3Key, response.contentLength());
 		} catch (NoSuchKeyException e) {
 			throw new IllegalArgumentException("Raw video not found in S3: " + rawS3Key, e);
+		}
+	}
+
+	@Override
+	public StoredObject headThumbnailObject(String thumbnailS3Key) {
+		try {
+			var response = s3Client.headObject(HeadObjectRequest.builder()
+					.bucket(awsProperties.s3().processedBucket())
+					.key(thumbnailS3Key)
+					.build());
+			return new StoredObject(thumbnailS3Key, response.contentLength());
+		} catch (NoSuchKeyException e) {
+			throw new IllegalArgumentException("Thumbnail not found in S3: " + thumbnailS3Key, e);
 		}
 	}
 
