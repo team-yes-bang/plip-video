@@ -14,6 +14,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -40,6 +41,7 @@ class VideoControllerAuthTest {
 
 	@Test
 	void issueUploadUrlRequiresAuthentication() throws Exception {
+		SecurityContextHolder.clearContext();
 		mockMvc.perform(post("/api/v1/videos/upload-url").param("contentLengthBytes", "1024"))
 				.andExpect(status().isUnauthorized());
 	}
@@ -63,6 +65,7 @@ class VideoControllerAuthTest {
 
 	@Test
 	void issueThumbnailUploadUrlRequiresAuthentication() throws Exception {
+		SecurityContextHolder.clearContext();
 		mockMvc.perform(post("/api/v1/videos/{videoUuid}/thumbnail-upload-url", UUID.randomUUID())
 						.param("contentLengthBytes", "1024"))
 				.andExpect(status().isUnauthorized());
