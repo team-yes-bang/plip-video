@@ -5,6 +5,7 @@ import com.plip.video.application.port.in.dto.VideoDestinationCommand;
 import com.plip.video.application.port.in.dto.VideoDestinationKind;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlProcessing;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlReady;
+import com.plip.video.application.port.in.dto.VideoThumbnailUploadUrlCommand;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
 import com.plip.video.application.port.out.PresignedUploadUrl;
 import com.plip.video.application.port.out.StoragePort;
@@ -170,11 +171,72 @@ class VideoServiceTest {
 		assertThat(result.newlyCreated()).isTrue();
 
 		verify(videoProcessingOutboxPort).enqueueProcessingJobs(videoUuid, rawS3Key, "hello", "12:30", 5);
+		verify(videoProcessingOutboxPort, never()).enqueueTranscodeJob(any(), any(), any(), any(), any(Integer.class));
 
 		ArgumentCaptor<Video> videoCaptor = ArgumentCaptor.forClass(Video.class);
 		verify(videoPersistencePort).save(videoCaptor.capture());
 		assertThat(videoCaptor.getValue().getThumbnailImagePath()).isNull();
 		assertThat(videoCaptor.getValue().getFilePath()).isEqualTo(rawS3Key);
+	}
+
+	@Test
+	void completePersistsUserThumbnailAndSkipsLambda() {
+		UUID videoUuid = UUID.fromString("0195bbbb-bbbb-7bbb-bbbb-bbbbbbbbbbbb");
+		String rawS3Key = "videos/raw/" + videoUuid + ".mp4";
+		String thumbnailS3Key = "thumbnail/" + videoUuid + ".jpg";
+
+		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.empty());
+		given(storagePort.buildRawS3Key(videoUuid)).willReturn(rawS3Key);
+		given(storagePort.buildThumbnailS3Key(videoUuid)).willReturn(thumbnailS3Key);
+		given(storagePort.headRawObject(rawS3Key)).willReturn(new StoredObject(rawS3Key, 2048L));
+		given(storagePort.headThumbnailObject(thumbnailS3Key)).willReturn(new StoredObject(thumbnailS3Key, 512L));
+		given(videoPersistencePort.save(any(Video.class))).willAnswer(invocation -> {
+			Video video = invocation.getArgument(0);
+			return Video.builder()
+					.id(1L)
+					.videoUuid(video.getVideoUuid())
+					.userUuid(video.getUserUuid())
+					.caption(video.getCaption())
+					.filePath(video.getFilePath())
+					.fileSizeByte(video.getFileSizeByte())
+					.thumbnailImagePath(video.getThumbnailImagePath())
+					.createdAt(LocalDateTime.of(2026, 8, 17, 3, 30, 0))
+					.build();
+		});
+
+		var result = videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, "hello", thumbnailS3Key));
+
+		assertThat(result.newlyCreated()).isTrue();
+		verify(videoProcessingOutboxPort).enqueueTranscodeJob(videoUuid, rawS3Key, "hello", "12:30", 5);
+		verify(videoProcessingOutboxPort, never()).enqueueProcessingJobs(any(), any(), any(), any(), any(Integer.class));
+
+		ArgumentCaptor<Video> videoCaptor = ArgumentCaptor.forClass(Video.class);
+		verify(videoPersistencePort).save(videoCaptor.capture());
+		assertThat(videoCaptor.getValue().getThumbnailImagePath()).isEqualTo(thumbnailS3Key);
+	}
+
+	@Test
+	void issueThumbnailUploadUrlDoesNotPersistVideo() {
+		UUID videoUuid = UUID.fromString("0195bbbb-bbbb-7bbb-bbbb-bbbbbbbbbbbb");
+		String thumbnailS3Key = "thumbnail/" + videoUuid + ".jpg";
+		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.empty());
+		given(storagePort.createPresignedThumbnailPutUrl(videoUuid, "image/jpeg", 1_024L))
+				.willReturn(new PresignedUploadUrl(
+						thumbnailS3Key,
+						"https://example/thumb",
+						Instant.parse("2026-08-17T04:00:00Z")
+				));
+
+		var result = videoService.issueThumbnailUploadUrl(new VideoThumbnailUploadUrlCommand(
+				videoUuid,
+				userUuid,
+				"image/jpeg",
+				1_024L
+		));
+
+		assertThat(result.thumbnailS3Key()).isEqualTo(thumbnailS3Key);
+		assertThat(result.uploadUrl()).contains("thumb");
+		verify(videoPersistencePort, never()).save(any());
 	}
 
 	@Test

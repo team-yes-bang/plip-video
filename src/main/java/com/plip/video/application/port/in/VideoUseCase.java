@@ -6,6 +6,8 @@ import com.plip.video.application.port.in.dto.VideoDestinationCommand;
 import com.plip.video.application.port.in.dto.VideoDestinationResult;
 import com.plip.video.application.port.in.dto.VideoDetailResult;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlResult;
+import com.plip.video.application.port.in.dto.VideoThumbnailUploadUrlCommand;
+import com.plip.video.application.port.in.dto.VideoThumbnailUploadUrlResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
 import com.plip.video.application.port.in.dto.VideoOwnershipResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlResult;
@@ -15,6 +17,8 @@ import java.util.UUID;
 public interface VideoUseCase {
 
 	VideoUploadUrlResult issueUploadUrl(VideoUploadUrlCommand command);
+
+	VideoThumbnailUploadUrlResult issueThumbnailUploadUrl(VideoThumbnailUploadUrlCommand command);
 
 	VideoCompleteResult complete(VideoCompleteCommand command);
 
