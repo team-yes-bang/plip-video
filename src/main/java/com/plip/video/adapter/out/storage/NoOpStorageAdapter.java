@@ -45,6 +45,31 @@ public class NoOpStorageAdapter implements StoragePort {
 	}
 
 	@Override
+	public String buildThumbnailS3Key(UUID videoUuid) {
+		return awsProperties.s3().thumbnailPrefix() + videoUuid + ".jpg";
+	}
+
+	@Override
+	public PresignedUploadUrl createPresignedThumbnailPutUrl(
+			UUID videoUuid,
+			String contentType,
+			long contentLengthBytes
+	) {
+		String thumbnailS3Key = buildThumbnailS3Key(videoUuid);
+		Instant expiresAt = Instant.now().plus(Duration.ofSeconds(awsProperties.presignedUrlTtlSeconds()));
+		String uploadUrl = "http://localhost/stub-presigned-put/" + thumbnailS3Key
+				+ "?contentLength=" + contentLengthBytes;
+		log.warn("AWS disabled — stub presigned thumbnail PUT URL for {}", thumbnailS3Key);
+		return new PresignedUploadUrl(thumbnailS3Key, uploadUrl, expiresAt);
+	}
+
+	@Override
+	public StoredObject headProcessedObject(String processedS3Key) {
+		log.warn("AWS disabled — stub head processed object for {}", processedS3Key);
+		return new StoredObject(processedS3Key, STUB_OBJECT_SIZE_BYTES);
+	}
+
+	@Override
 	public String createPresignedRawPlaybackUrl(String rawS3Key) {
 		String playbackUrl = "http://localhost/stub-presigned-get/" + rawS3Key;
 		log.warn("AWS disabled — stub presigned GET URL for {}", rawS3Key);

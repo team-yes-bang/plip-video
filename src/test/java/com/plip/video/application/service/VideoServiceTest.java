@@ -5,6 +5,7 @@ import com.plip.video.application.port.in.dto.VideoDestinationCommand;
 import com.plip.video.application.port.in.dto.VideoDestinationKind;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlProcessing;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlReady;
+import com.plip.video.application.port.in.dto.VideoThumbnailUploadUrlCommand;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
 import com.plip.video.application.port.out.PresignedUploadUrl;
 import com.plip.video.application.port.out.StoragePort;
@@ -135,10 +136,11 @@ class VideoServiceTest {
 		given(storagePort.buildRawS3Key(videoUuid)).willReturn(rawS3Key);
 		given(storagePort.headRawObject(rawS3Key)).willReturn(new StoredObject(rawS3Key, 60_000_000L));
 
-		assertThatThrownBy(() -> videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, null)))
+		assertThatThrownBy(() -> videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, null, null)))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessage("Video file exceeds max size");
-		verify(videoProcessingOutboxPort, never()).enqueueProcessingJobs(any(), any(), any(), any(), any(Integer.class));
+		verify(videoProcessingOutboxPort, never()).enqueueProcessingJobs(
+				any(), any(), any(), any(), any(Integer.class), any(Boolean.class));
 	}
 
 	@Test
@@ -162,14 +164,14 @@ class VideoServiceTest {
 					.build();
 		});
 
-		var result = videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, "hello"));
+		var result = videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, "hello", null));
 
 		assertThat(result.videoUuid()).isEqualTo(videoUuid);
 		assertThat(result.caption()).isEqualTo("hello");
 		assertThat(result.overlayTime()).isEqualTo("12:30");
 		assertThat(result.newlyCreated()).isTrue();
 
-		verify(videoProcessingOutboxPort).enqueueProcessingJobs(videoUuid, rawS3Key, "hello", "12:30", 5);
+		verify(videoProcessingOutboxPort).enqueueProcessingJobs(videoUuid, rawS3Key, "hello", "12:30", 5, true);
 
 		ArgumentCaptor<Video> videoCaptor = ArgumentCaptor.forClass(Video.class);
 		verify(videoPersistencePort).save(videoCaptor.capture());
@@ -190,10 +192,11 @@ class VideoServiceTest {
 				.build();
 		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.of(existing));
 
-		var result = videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, null));
+		var result = videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, null, null));
 
 		assertThat(result.newlyCreated()).isFalse();
-		verify(videoProcessingOutboxPort, never()).enqueueProcessingJobs(any(), any(), any(), any(), any(Integer.class));
+		verify(videoProcessingOutboxPort, never()).enqueueProcessingJobs(
+				any(), any(), any(), any(), any(Integer.class), any(Boolean.class));
 	}
 
 	@Test
@@ -207,7 +210,7 @@ class VideoServiceTest {
 						.fileSizeByte(1L)
 						.build()));
 
-		assertThatThrownBy(() -> videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, null)))
+		assertThatThrownBy(() -> videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, null, null)))
 				.isInstanceOf(ResponseStatusException.class)
 				.hasMessageContaining("owner mismatch");
 	}
@@ -507,5 +510,63 @@ class VideoServiceTest {
 				null
 		))).isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("topicUuid");
+	}
+
+	@Test
+	void issueThumbnailUploadUrlReturnsPresignedPut() {
+		UUID videoUuid = UUID.fromString("0195eeee-bbbb-7eee-eeee-eeeeeeeeeeee");
+		String thumbnailS3Key = "thumbnail/" + videoUuid + ".jpg";
+		given(storagePort.createPresignedThumbnailPutUrl(videoUuid, "image/jpeg", 512L))
+				.willReturn(new PresignedUploadUrl(
+						thumbnailS3Key,
+						"https://example/thumbnail-upload",
+						Instant.parse("2026-08-17T04:00:00Z")
+				));
+
+		var result = videoService.issueThumbnailUploadUrl(new VideoThumbnailUploadUrlCommand(
+				userUuid,
+				videoUuid,
+				"image/jpeg",
+				512L
+		));
+
+		assertThat(result.videoUuid()).isEqualTo(videoUuid);
+		assertThat(result.thumbnailS3Key()).isEqualTo(thumbnailS3Key);
+		assertThat(result.uploadUrl()).contains("example");
+	}
+
+	@Test
+	void completeWithClientThumbnailSkipsLambdaThumbnailInvoke() {
+		UUID videoUuid = UUID.fromString("0195ffff-bbbb-7fff-ffff-ffffffffffff");
+		String rawS3Key = "videos/raw/" + videoUuid + ".mp4";
+		String thumbnailS3Key = "thumbnail/" + videoUuid + ".jpg";
+
+		given(videoPersistencePort.findByVideoUuid(videoUuid)).willReturn(Optional.empty());
+		given(storagePort.buildRawS3Key(videoUuid)).willReturn(rawS3Key);
+		given(storagePort.buildThumbnailS3Key(videoUuid)).willReturn(thumbnailS3Key);
+		given(storagePort.headRawObject(rawS3Key)).willReturn(new StoredObject(rawS3Key, 2048L));
+		given(storagePort.headProcessedObject(thumbnailS3Key)).willReturn(new StoredObject(thumbnailS3Key, 512L));
+		given(videoPersistencePort.save(any(Video.class))).willAnswer(invocation -> {
+			Video video = invocation.getArgument(0);
+			return Video.builder()
+					.id(1L)
+					.videoUuid(video.getVideoUuid())
+					.userUuid(video.getUserUuid())
+					.caption(video.getCaption())
+					.filePath(video.getFilePath())
+					.fileSizeByte(video.getFileSizeByte())
+					.thumbnailImagePath(video.getThumbnailImagePath())
+					.createdAt(LocalDateTime.of(2026, 8, 17, 3, 30, 0))
+					.build();
+		});
+
+		var result = videoService.complete(new VideoCompleteCommand(videoUuid, userUuid, "hello", thumbnailS3Key));
+
+		assertThat(result.newlyCreated()).isTrue();
+		verify(videoProcessingOutboxPort).enqueueProcessingJobs(videoUuid, rawS3Key, "hello", "12:30", 5, false);
+
+		ArgumentCaptor<Video> videoCaptor = ArgumentCaptor.forClass(Video.class);
+		verify(videoPersistencePort).save(videoCaptor.capture());
+		assertThat(videoCaptor.getValue().getThumbnailImagePath()).isEqualTo(thumbnailS3Key);
 	}
 }

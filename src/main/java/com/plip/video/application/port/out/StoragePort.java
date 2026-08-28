@@ -12,7 +12,13 @@ public interface StoragePort {
 	 */
 	PresignedUploadUrl createPresignedPutUrl(UUID videoUuid, String contentType, long contentLengthBytes);
 
+	String buildThumbnailS3Key(UUID videoUuid);
+
+	PresignedUploadUrl createPresignedThumbnailPutUrl(UUID videoUuid, String contentType, long contentLengthBytes);
+
 	StoredObject headRawObject(String rawS3Key);
+
+	StoredObject headProcessedObject(String processedS3Key);
 
 	String createPresignedRawPlaybackUrl(String rawS3Key);
 

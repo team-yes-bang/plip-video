@@ -29,10 +29,13 @@ public class VideoProcessingOutboxAdapter implements VideoProcessingOutboxPort {
 			String rawS3Key,
 			String caption,
 			String overlayTime,
-			int maxDurationSeconds
+			int maxDurationSeconds,
+			boolean invokeThumbnailLambda
 	) {
 		LocalDateTime now = LocalDateTime.now();
-		saveIfAbsent(videoUuid, VideoProcessingOutboxEventType.THUMBNAIL_INVOKE, thumbnailPayload(rawS3Key), now);
+		if (invokeThumbnailLambda) {
+			saveIfAbsent(videoUuid, VideoProcessingOutboxEventType.THUMBNAIL_INVOKE, thumbnailPayload(rawS3Key), now);
+		}
 		saveIfAbsent(
 				videoUuid,
 				VideoProcessingOutboxEventType.SQS_ENQUEUE,

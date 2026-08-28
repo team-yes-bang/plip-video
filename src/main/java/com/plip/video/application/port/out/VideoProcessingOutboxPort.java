@@ -9,7 +9,8 @@ public interface VideoProcessingOutboxPort {
 			String rawS3Key,
 			String caption,
 			String overlayTime,
-			int maxDurationSeconds
+			int maxDurationSeconds,
+			boolean invokeThumbnailLambda
 	);
 
 }

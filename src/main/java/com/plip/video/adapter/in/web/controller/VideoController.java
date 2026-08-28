@@ -8,6 +8,7 @@ import com.plip.video.adapter.in.web.dto.VideoDestinationResponse;
 import com.plip.video.adapter.in.web.dto.VideoDetailResponse;
 import com.plip.video.adapter.in.web.dto.VideoDownloadUrlProcessingResponse;
 import com.plip.video.adapter.in.web.dto.VideoDownloadUrlResponse;
+import com.plip.video.adapter.in.web.dto.VideoThumbnailUploadUrlResponse;
 import com.plip.video.adapter.in.web.dto.VideoUploadUrlResponse;
 import com.plip.video.application.port.in.VideoUseCase;
 import com.plip.video.application.port.in.dto.VideoCompleteCommand;
@@ -19,6 +20,8 @@ import com.plip.video.application.port.in.dto.VideoDetailResult;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlProcessing;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlReady;
 import com.plip.video.application.port.in.dto.VideoDownloadUrlResult;
+import com.plip.video.application.port.in.dto.VideoThumbnailUploadUrlCommand;
+import com.plip.video.application.port.in.dto.VideoThumbnailUploadUrlResult;
 import com.plip.video.application.port.in.dto.VideoUploadUrlCommand;
 import com.plip.video.application.port.in.dto.VideoUploadUrlResult;
 import com.plip.video.global.config.SwaggerConfig;
@@ -81,10 +84,37 @@ public class VideoController {
 		);
 	}
 
+	@Operation(summary = "썸네일 Presigned upload URL 발급", description = """
+			클라이언트 업로드용 썸네일 Presigned PUT URL을 발급합니다.
+			- processed bucket, key = thumbnail/{videoUuid}.jpg
+			- contentLengthBytes 필수 (max 2MB, image/jpeg)
+			- upload-url에서 발급된 videoUuid 사용
+			- DB INSERT 없음 (complete에서 thumbnailS3Key 전달)
+			""")
+	@PostMapping("/{videoUuid}/thumbnail-upload-url")
+	@ResponseStatus(HttpStatus.CREATED)
+	public VideoThumbnailUploadUrlResponse issueThumbnailUploadUrl(
+			@Parameter(description = "upload-url에서 발급된 video UUID") @PathVariable UUID videoUuid,
+			@Parameter(description = "Content-Type (선택, 기본 image/jpeg)") @RequestParam(required = false) String contentType,
+			@Parameter(description = "업로드할 바이트 수 (필수, max 2MB)") @RequestParam long contentLengthBytes
+	) {
+		UUID actorUuid = AuthenticatedActor.requireUserUuid();
+		VideoThumbnailUploadUrlResult result = videoUseCase.issueThumbnailUploadUrl(
+				new VideoThumbnailUploadUrlCommand(actorUuid, videoUuid, contentType, contentLengthBytes)
+		);
+		return new VideoThumbnailUploadUrlResponse(
+				result.videoUuid(),
+				result.thumbnailS3Key(),
+				result.uploadUrl(),
+				result.expiresAt()
+		);
+	}
+
 	@Operation(summary = "영상 업로드 complete", description = """
 			S3 업로드 완료 후 메타데이터를 DB에 저장합니다.
 			- HeadObject로 raw 파일 존재·용량 검증
-			- thumbnail_image_path = null (Lambda callback 대기)
+			- thumbnailS3Key 있으면 processed bucket 검증 후 저장 (Lambda thumbnail skip)
+			- thumbnailS3Key 없으면 thumbnail_image_path = null (Lambda callback 대기)
 			- overlayTime = created_at KST HH:mm
 			- 업로더는 Gateway X-User-UUID (헤더 위조 방지)
 			""")
@@ -95,7 +125,10 @@ public class VideoController {
 	) {
 		UUID actorUuid = AuthenticatedActor.requireUserUuid();
 		String caption = request != null ? request.caption() : null;
-		VideoCompleteResult result = videoUseCase.complete(new VideoCompleteCommand(videoUuid, actorUuid, caption));
+		String thumbnailS3Key = request != null ? request.thumbnailS3Key() : null;
+		VideoCompleteResult result = videoUseCase.complete(
+				new VideoCompleteCommand(videoUuid, actorUuid, caption, thumbnailS3Key)
+		);
 		VideoCompleteResponse body = new VideoCompleteResponse(
 				result.videoUuid(),
 				result.caption(),
