@@ -20,6 +20,9 @@ app:
     topics:
       video-uploaded: ${APP_KAFKA_TOPICS_VIDEO_UPLOADED:video.uploaded}
       diary-video-uploaded: ${APP_KAFKA_TOPICS_DIARY_VIDEO_UPLOADED:diary.video.uploaded}
+  topic:
+    internal-base-url: ${TOPIC_INTERNAL_BASE_URL:http://plip-topic.plip.svc.cluster.local:8080}
+    internal-api-key: ${TOPIC_INTERNAL_API_KEY:}
 
 plip:
   gateway:

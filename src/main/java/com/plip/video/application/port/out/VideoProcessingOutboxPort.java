@@ -9,8 +9,15 @@ public interface VideoProcessingOutboxPort {
 			String rawS3Key,
 			String caption,
 			String overlayTime,
-			int maxDurationSeconds,
-			boolean invokeThumbnailLambda
+			int maxDurationSeconds
+	);
+
+	void enqueueTranscodeJob(
+			UUID videoUuid,
+			String rawS3Key,
+			String caption,
+			String overlayTime,
+			int maxDurationSeconds
 	);
 
 }

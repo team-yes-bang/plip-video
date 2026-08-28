@@ -39,12 +39,6 @@ public class NoOpStorageAdapter implements StoragePort {
 	}
 
 	@Override
-	public StoredObject headRawObject(String rawS3Key) {
-		log.warn("AWS disabled — stub head object for {}", rawS3Key);
-		return new StoredObject(rawS3Key, STUB_OBJECT_SIZE_BYTES);
-	}
-
-	@Override
 	public String buildThumbnailS3Key(UUID videoUuid) {
 		return awsProperties.s3().thumbnailPrefix() + videoUuid + ".jpg";
 	}
@@ -59,14 +53,20 @@ public class NoOpStorageAdapter implements StoragePort {
 		Instant expiresAt = Instant.now().plus(Duration.ofSeconds(awsProperties.presignedUrlTtlSeconds()));
 		String uploadUrl = "http://localhost/stub-presigned-put/" + thumbnailS3Key
 				+ "?contentLength=" + contentLengthBytes;
-		log.warn("AWS disabled — stub presigned thumbnail PUT URL for {}", thumbnailS3Key);
+		log.warn("AWS disabled — stub presigned PUT URL for {}", thumbnailS3Key);
 		return new PresignedUploadUrl(thumbnailS3Key, uploadUrl, expiresAt);
 	}
 
 	@Override
-	public StoredObject headProcessedObject(String processedS3Key) {
-		log.warn("AWS disabled — stub head processed object for {}", processedS3Key);
-		return new StoredObject(processedS3Key, STUB_OBJECT_SIZE_BYTES);
+	public StoredObject headRawObject(String rawS3Key) {
+		log.warn("AWS disabled — stub head object for {}", rawS3Key);
+		return new StoredObject(rawS3Key, STUB_OBJECT_SIZE_BYTES);
+	}
+
+	@Override
+	public StoredObject headThumbnailObject(String thumbnailS3Key) {
+		log.warn("AWS disabled — stub head object for {}", thumbnailS3Key);
+		return new StoredObject(thumbnailS3Key, STUB_OBJECT_SIZE_BYTES);
 	}
 
 	@Override

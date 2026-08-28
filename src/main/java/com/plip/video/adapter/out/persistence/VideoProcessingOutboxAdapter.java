@@ -29,18 +29,27 @@ public class VideoProcessingOutboxAdapter implements VideoProcessingOutboxPort {
 			String rawS3Key,
 			String caption,
 			String overlayTime,
-			int maxDurationSeconds,
-			boolean invokeThumbnailLambda
+			int maxDurationSeconds
 	) {
 		LocalDateTime now = LocalDateTime.now();
-		if (invokeThumbnailLambda) {
-			saveIfAbsent(videoUuid, VideoProcessingOutboxEventType.THUMBNAIL_INVOKE, thumbnailPayload(rawS3Key), now);
-		}
+		saveIfAbsent(videoUuid, VideoProcessingOutboxEventType.THUMBNAIL_INVOKE, thumbnailPayload(rawS3Key), now);
+		enqueueTranscodeJob(videoUuid, rawS3Key, caption, overlayTime, maxDurationSeconds);
+	}
+
+	@Override
+	@Transactional
+	public void enqueueTranscodeJob(
+			UUID videoUuid,
+			String rawS3Key,
+			String caption,
+			String overlayTime,
+			int maxDurationSeconds
+	) {
 		saveIfAbsent(
 				videoUuid,
 				VideoProcessingOutboxEventType.SQS_ENQUEUE,
 				sqsPayload(rawS3Key, caption, overlayTime, maxDurationSeconds),
-				now
+				LocalDateTime.now()
 		);
 	}
 

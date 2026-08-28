@@ -43,8 +43,8 @@ import java.util.UUID;
 public class VideoService implements VideoUseCase {
 
 	private static final String DEFAULT_CONTENT_TYPE = "video/mp4";
-	private static final String DEFAULT_THUMBNAIL_CONTENT_TYPE = "image/jpeg";
-	private static final long MAX_THUMBNAIL_BYTES = 2L * 1024L * 1024L;
+	private static final String THUMBNAIL_CONTENT_TYPE = "image/jpeg";
+	private static final long MAX_THUMBNAIL_BYTES = 2L * 1024 * 1024;
 	private static final int DOWNLOAD_RETRY_AFTER_SECONDS = 3;
 	private static final String DOWNLOAD_PROCESSING_MESSAGE = "다운로드용 영상 가공 중입니다.";
 	private static final String DESTINATION_PUBLISHED_STATUS = "PUBLISHED";
@@ -83,6 +83,16 @@ public class VideoService implements VideoUseCase {
 		if (command.videoUuid() == null) {
 			throw new IllegalArgumentException("videoUuid is required");
 		}
+		if (command.userUuid() == null) {
+			throw new IllegalArgumentException("userUuid is required");
+		}
+
+		videoPersistencePort.findByVideoUuid(command.videoUuid()).ifPresent(video -> {
+			if (!video.getUserUuid().equals(command.userUuid())) {
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Video owner mismatch");
+			}
+		});
+
 		String contentType = resolveThumbnailContentType(command.contentType());
 		long contentLengthBytes = requireValidThumbnailContentLength(command.contentLengthBytes());
 		var presigned = storagePort.createPresignedThumbnailPutUrl(
@@ -140,7 +150,7 @@ public class VideoService implements VideoUseCase {
 					command.videoUuid(),
 					command.userUuid(),
 					caption,
-					null,
+					storagePort.resolvePublicUrl(video.getThumbnailImagePath()),
 					occurredAt
 			));
 		}
@@ -225,8 +235,7 @@ public class VideoService implements VideoUseCase {
 		String rawS3Key = storagePort.buildRawS3Key(command.videoUuid());
 		StoredObject rawObject = storagePort.headRawObject(rawS3Key);
 		validateFileSize(rawObject.sizeBytes());
-
-		String thumbnailImagePath = resolveClientThumbnailPath(command.thumbnailS3Key(), command.videoUuid());
+		String thumbnailS3Key = resolveUserThumbnailS3Key(command);
 
 		Video video = Video.builder()
 				.videoUuid(command.videoUuid())
@@ -234,7 +243,7 @@ public class VideoService implements VideoUseCase {
 				.caption(normalizeCaption(command.caption()))
 				.filePath(rawS3Key)
 				.fileSizeByte(rawObject.sizeBytes())
-				.thumbnailImagePath(thumbnailImagePath)
+				.thumbnailImagePath(thumbnailS3Key)
 				.build();
 
 		Video saved;
@@ -247,14 +256,23 @@ public class VideoService implements VideoUseCase {
 		}
 
 		String overlayTime = OverlayTimeFormatter.formatKstHhMm(saved.getCreatedAt());
-		videoProcessingOutboxPort.enqueueProcessingJobs(
-				saved.getVideoUuid(),
-				rawS3Key,
-				saved.getCaption(),
-				overlayTime,
-				videoProperties.maxDurationSeconds(),
-				thumbnailImagePath == null
-		);
+		if (thumbnailS3Key == null) {
+			videoProcessingOutboxPort.enqueueProcessingJobs(
+					saved.getVideoUuid(),
+					rawS3Key,
+					saved.getCaption(),
+					overlayTime,
+					videoProperties.maxDurationSeconds()
+			);
+		} else {
+			videoProcessingOutboxPort.enqueueTranscodeJob(
+					saved.getVideoUuid(),
+					rawS3Key,
+					saved.getCaption(),
+					overlayTime,
+					videoProperties.maxDurationSeconds()
+			);
+		}
 		return toCompleteResult(saved, true);
 	}
 
@@ -294,35 +312,49 @@ public class VideoService implements VideoUseCase {
 
 	private String resolveThumbnailContentType(String contentType) {
 		String resolved = (contentType == null || contentType.isBlank())
-				? DEFAULT_THUMBNAIL_CONTENT_TYPE
-				: contentType.trim();
-		if (!DEFAULT_THUMBNAIL_CONTENT_TYPE.equalsIgnoreCase(resolved)) {
+				? THUMBNAIL_CONTENT_TYPE
+				: contentType.trim().toLowerCase();
+		if (!THUMBNAIL_CONTENT_TYPE.equals(resolved)) {
 			throw new IllegalArgumentException("Unsupported thumbnail content type: " + resolved);
 		}
-		return DEFAULT_THUMBNAIL_CONTENT_TYPE;
+		return resolved;
 	}
 
-	private String resolveClientThumbnailPath(String thumbnailS3Key, UUID videoUuid) {
-		if (thumbnailS3Key == null || thumbnailS3Key.isBlank()) {
+	private long requireValidThumbnailContentLength(Long contentLengthBytes) {
+		if (contentLengthBytes == null) {
+			throw new IllegalArgumentException("contentLengthBytes is required");
+		}
+		if (contentLengthBytes <= 0) {
+			throw new IllegalArgumentException("Thumbnail file is empty");
+		}
+		if (contentLengthBytes > MAX_THUMBNAIL_BYTES) {
+			throw new IllegalArgumentException("Thumbnail file exceeds max size");
+		}
+		return contentLengthBytes;
+	}
+
+	private String resolveUserThumbnailS3Key(VideoCompleteCommand command) {
+		String provided = command.thumbnailS3Key();
+		if (provided == null || provided.isBlank()) {
 			return null;
 		}
-		String normalizedPath = normalizeCallbackPath(
-				thumbnailS3Key,
+		String normalized = normalizeCallbackPath(
+				provided,
 				"thumbnailS3Key",
 				awsProperties.s3().thumbnailPrefix()
 		);
-		String expectedPath = storagePort.buildThumbnailS3Key(videoUuid);
-		if (!expectedPath.equals(normalizedPath)) {
-			throw new IllegalArgumentException("thumbnailS3Key must match " + expectedPath);
+		String expected = storagePort.buildThumbnailS3Key(command.videoUuid());
+		if (!expected.equals(normalized)) {
+			throw new IllegalArgumentException("thumbnailS3Key does not match issued key");
 		}
-		StoredObject thumbnailObject = storagePort.headProcessedObject(normalizedPath);
-		if (thumbnailObject.sizeBytes() <= 0) {
+		StoredObject thumbnail = storagePort.headThumbnailObject(normalized);
+		if (thumbnail.sizeBytes() <= 0) {
 			throw new IllegalArgumentException("Thumbnail file is empty");
 		}
-		if (thumbnailObject.sizeBytes() > MAX_THUMBNAIL_BYTES) {
+		if (thumbnail.sizeBytes() > MAX_THUMBNAIL_BYTES) {
 			throw new IllegalArgumentException("Thumbnail file exceeds max size");
 		}
-		return normalizedPath;
+		return normalized;
 	}
 
 	private void validateContentType(String contentType) {
@@ -345,19 +377,6 @@ public class VideoService implements VideoUseCase {
 			throw new IllegalArgumentException("contentLengthBytes is required");
 		}
 		validateFileSize(contentLengthBytes);
-		return contentLengthBytes;
-	}
-
-	private long requireValidThumbnailContentLength(Long contentLengthBytes) {
-		if (contentLengthBytes == null) {
-			throw new IllegalArgumentException("contentLengthBytes is required");
-		}
-		if (contentLengthBytes <= 0) {
-			throw new IllegalArgumentException("contentLengthBytes must be positive");
-		}
-		if (contentLengthBytes > MAX_THUMBNAIL_BYTES) {
-			throw new IllegalArgumentException("Thumbnail file exceeds max size");
-		}
 		return contentLengthBytes;
 	}
 

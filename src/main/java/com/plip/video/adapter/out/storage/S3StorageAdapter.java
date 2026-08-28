@@ -35,11 +35,6 @@ public class S3StorageAdapter implements StoragePort {
 	}
 
 	@Override
-	public String buildThumbnailS3Key(UUID videoUuid) {
-		return awsProperties.s3().thumbnailPrefix() + videoUuid + ".jpg";
-	}
-
-	@Override
 	public PresignedUploadUrl createPresignedPutUrl(UUID videoUuid, String contentType, long contentLengthBytes) {
 		String rawS3Key = buildRawS3Key(videoUuid);
 		Duration ttl = Duration.ofSeconds(awsProperties.presignedUrlTtlSeconds());
@@ -59,6 +54,11 @@ public class S3StorageAdapter implements StoragePort {
 
 		String uploadUrl = s3Presigner.presignPutObject(presignRequest).url().toString();
 		return new PresignedUploadUrl(rawS3Key, uploadUrl, expiresAt);
+	}
+
+	@Override
+	public String buildThumbnailS3Key(UUID videoUuid) {
+		return awsProperties.s3().thumbnailPrefix() + videoUuid + ".jpg";
 	}
 
 	@Override
@@ -101,15 +101,15 @@ public class S3StorageAdapter implements StoragePort {
 	}
 
 	@Override
-	public StoredObject headProcessedObject(String processedS3Key) {
+	public StoredObject headThumbnailObject(String thumbnailS3Key) {
 		try {
 			var response = s3Client.headObject(HeadObjectRequest.builder()
 					.bucket(awsProperties.s3().processedBucket())
-					.key(processedS3Key)
+					.key(thumbnailS3Key)
 					.build());
-			return new StoredObject(processedS3Key, response.contentLength());
+			return new StoredObject(thumbnailS3Key, response.contentLength());
 		} catch (NoSuchKeyException e) {
-			throw new IllegalArgumentException("Processed object not found in S3: " + processedS3Key, e);
+			throw new IllegalArgumentException("Thumbnail not found in S3: " + thumbnailS3Key, e);
 		}
 	}
 

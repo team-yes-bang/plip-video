@@ -18,11 +18,12 @@ paths:
       - Video
       summary: 썸네일 Presigned upload URL 발급
       description: |
-        클라이언트 업로드용 썸네일 Presigned PUT URL을 발급합니다.
-        - processed bucket, key = thumbnail/{videoUuid}.jpg
-        - contentLengthBytes 필수 (max 2MB, image/jpeg)
-        - upload-url에서 발급된 videoUuid 사용
-        - DB INSERT 없음 (complete에서 thumbnailS3Key 전달)
+        클라이언트가 고른 이미지 또는 영상 프레임을 PUT할 Presigned URL을 발급합니다.
+        - thumbnailS3Key = thumbnail/{videoUuid}.jpg
+        - contentType은 image/jpeg
+        - contentLengthBytes 필수 (최대 2MB)
+        - complete 전에 호출 (video row가 없어도 됨)
+        - 이미 complete된 영상이면 소유자만 재발급 가능
       operationId: issueThumbnailUploadUrl
       parameters:
       - name: videoUuid
@@ -40,7 +41,7 @@ paths:
           type: string
       - name: contentLengthBytes
         in: query
-        description: "업로드할 바이트 수 (필수, max 2MB)"
+        description: "업로드할 바이트 수 (필수, 2MB 이하)"
         required: true
         schema:
           type: integer
@@ -133,8 +134,8 @@ paths:
       description: |
         S3 업로드 완료 후 메타데이터를 DB에 저장합니다.
         - HeadObject로 raw 파일 존재·용량 검증
-        - thumbnailS3Key 있으면 processed bucket 검증 후 저장 (Lambda thumbnail skip)
-        - thumbnailS3Key 없으면 thumbnail_image_path = null (Lambda callback 대기)
+        - thumbnailS3Key가 있으면 processed bucket HeadObject 후 즉시 저장, Lambda 썸네일은 생략
+        - thumbnailS3Key가 없으면 thumbnail_image_path = null (Lambda callback 대기)
         - overlayTime = created_at KST HH:mm
         - 업로더는 Gateway X-User-UUID (헤더 위조 방지)
       operationId: complete
@@ -314,15 +315,16 @@ components:
   schemas:
     VideoThumbnailUploadUrlResponse:
       type: object
-      description: 썸네일 Presigned URL 발급 응답
+      description: 썸네일 Presigned PUT URL 발급 응답
       properties:
         videoUuid:
           type: string
           format: uuid
-          description: 영상 UUID (upload-url에서 발급)
+          description: 영상 UUID
         thumbnailS3Key:
           type: string
-          description: "S3 object key (processed bucket, thumbnail/)"
+          description: S3 object key (processed bucket)
+          example: "thumbnail/{videoUuid}.jpg"
         uploadUrl:
           type: string
           description: Presigned PUT URL
@@ -385,7 +387,7 @@ components:
           description: 캡션 (선택)
         thumbnailS3Key:
           type: string
-          description: "클라이언트 업로드 썸네일 S3 key (선택, thumbnail-upload-url 발급값)"
+          description: "클라이언트가 PUT한 썸네일 S3 key (선택, thumbnail/{videoUuid}.jpg)"
     VideoCompleteResponse:
       type: object
       description: 영상 업로드 complete 응답

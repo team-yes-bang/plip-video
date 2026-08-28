@@ -8,4 +8,7 @@ public record VideoCompleteCommand(
 		String caption,
 		String thumbnailS3Key
 ) {
+	public VideoCompleteCommand(UUID videoUuid, UUID userUuid, String caption) {
+		this(videoUuid, userUuid, caption, null);
+	}
 }
