@@ -29,6 +29,13 @@ eureka:
     fetch-registry: true
 
 plip:
+  storage:
+    # s3 | local | noop | auto (default: derive from AWS_ENABLED)
+    type: ${PLIP_STORAGE_TYPE:auto}
+    local:
+      root: ${PLIP_STORAGE_LOCAL_ROOT:}
+      public-base-url: ${PLIP_STORAGE_LOCAL_PUBLIC_BASE_URL:http://localhost:8000}
+      token-secret: ${PLIP_STORAGE_LOCAL_TOKEN_SECRET:local-dev-storage-token}
   video:
     max-duration-seconds: 5
     allowed-content-types:
