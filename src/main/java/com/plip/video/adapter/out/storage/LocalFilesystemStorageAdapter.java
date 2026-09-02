@@ -94,7 +94,7 @@ public class LocalFilesystemStorageAdapter implements StoragePort {
 		return signedUrl("GET", relativePath);
 	}
 
-	Path resolvePath(String objectKey) {
+	public Path resolvePath(String objectKey) {
 		return LocalObjectPathHelper.resolveStoragePath(rootPath, objectKey);
 	}
 
