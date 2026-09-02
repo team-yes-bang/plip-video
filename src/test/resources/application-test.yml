@@ -40,3 +40,5 @@ plip:
       video-processing-queue-url: https://sqs.example.com/test
     lambda:
       thumbnail-function-arn: arn:aws:lambda:ap-northeast-2:123:function:test-thumb
+  storage:
+    type: noop

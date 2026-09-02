@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "plip.storage", name = "type", havingValue = "noop")
+@ConditionalOnProperty(prefix = "plip.storage", name = "type", havingValue = "noop", matchIfMissing = true)
 @RequiredArgsConstructor
 public class NoOpStorageAdapter implements StoragePort {
 

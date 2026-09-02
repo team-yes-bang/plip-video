@@ -1,34 +1,26 @@
 package com.plip.video.adapter.in.web.controller;
 
-import com.plip.video.adapter.out.storage.LocalFilesystemStorageAdapter;
-import com.plip.video.adapter.out.storage.LocalObjectPathHelper;
-import com.plip.video.adapter.out.storage.LocalObjectTokenService;
+import com.plip.video.adapter.out.storage.LocalObjectReadResult;
+import com.plip.video.adapter.out.storage.LocalObjectStorageService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 @RestController
 @ConditionalOnProperty(prefix = "plip.storage", name = "type", havingValue = "local")
 @RequiredArgsConstructor
 public class LocalObjectController {
 
-	private final LocalFilesystemStorageAdapter storageAdapter;
-	private final LocalObjectTokenService tokenService;
+	private final LocalObjectStorageService localObjectStorageService;
 
 	@PutMapping("/api/v1/local-objects/**")
 	public ResponseEntity<Void> putObject(
@@ -36,20 +28,13 @@ public class LocalObjectController {
 			@RequestParam("expires") String expires,
 			@RequestParam("sig") String signature
 	) throws IOException {
-		String objectKey = LocalObjectPathHelper.extractObjectKey(
+		localObjectStorageService.putObject(
 				request.getRequestURI(),
-				request.getContextPath()
+				request.getContextPath(),
+				expires,
+				signature,
+				request.getInputStream()
 		);
-		tokenService.verifyOrThrow("PUT", objectKey, expires, signature);
-
-		Path target = storageAdapter.resolvePath(objectKey);
-		Files.createDirectories(target.getParent());
-		try (InputStream body = request.getInputStream()) {
-			Files.copy(body, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-		}
-		if (!Files.isRegularFile(target) || Files.size(target) <= 0) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Uploaded object is empty");
-		}
 		return ResponseEntity.ok().build();
 	}
 
@@ -59,30 +44,14 @@ public class LocalObjectController {
 			@RequestParam("expires") String expires,
 			@RequestParam("sig") String signature
 	) throws IOException {
-		String objectKey = LocalObjectPathHelper.extractObjectKey(
+		LocalObjectReadResult result = localObjectStorageService.getObject(
 				request.getRequestURI(),
-				request.getContextPath()
+				request.getContextPath(),
+				expires,
+				signature
 		);
-		tokenService.verifyOrThrow("GET", objectKey, expires, signature);
-
-		Path path = storageAdapter.resolvePath(objectKey);
-		if (!Files.isRegularFile(path)) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Object not found");
-		}
-
-		InputStreamResource resource = new InputStreamResource(Files.newInputStream(path));
 		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_TYPE, contentTypeFor(objectKey))
-				.body(resource);
-	}
-
-	private static String contentTypeFor(String objectKey) {
-		if (objectKey.endsWith(".mp4")) {
-			return MediaType.valueOf("video/mp4").toString();
-		}
-		if (objectKey.endsWith(".jpg") || objectKey.endsWith(".jpeg")) {
-			return MediaType.IMAGE_JPEG_VALUE;
-		}
-		return MediaType.APPLICATION_OCTET_STREAM_VALUE;
+				.header(HttpHeaders.CONTENT_TYPE, LocalObjectStorageService.contentTypeFor(result.objectKey()))
+				.body(result.resource());
 	}
 }
