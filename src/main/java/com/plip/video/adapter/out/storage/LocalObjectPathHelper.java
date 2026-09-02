@@ -9,20 +9,20 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-final class LocalObjectPathHelper {
+public final class LocalObjectPathHelper {
 
 	private static final String OBJECT_PREFIX = "/api/v1/local-objects/";
 
 	private LocalObjectPathHelper() {
 	}
 
-	static String encodeObjectKey(String objectKey) {
+	public static String encodeObjectKey(String objectKey) {
 		return Arrays.stream(objectKey.split("/", -1))
 				.map(LocalObjectPathHelper::encodeSegment)
 				.collect(Collectors.joining("/"));
 	}
 
-	static String extractObjectKey(String requestUri, String contextPath) {
+	public static String extractObjectKey(String requestUri, String contextPath) {
 		String path = requestUri;
 		if (contextPath != null && !contextPath.isBlank() && path.startsWith(contextPath)) {
 			path = path.substring(contextPath.length());
@@ -37,7 +37,7 @@ final class LocalObjectPathHelper {
 		return decodeObjectKey(encoded);
 	}
 
-	static Path resolveStoragePath(Path root, String objectKey) {
+	public static Path resolveStoragePath(Path root, String objectKey) {
 		if (objectKey == null || objectKey.isBlank()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing object key");
 		}
