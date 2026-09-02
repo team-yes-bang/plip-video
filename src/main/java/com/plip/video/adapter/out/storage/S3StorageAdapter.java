@@ -21,7 +21,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Component
-@ConditionalOnProperty(prefix = "plip.aws", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "plip.storage", name = "type", havingValue = "s3")
 @RequiredArgsConstructor
 public class S3StorageAdapter implements StoragePort {
 
