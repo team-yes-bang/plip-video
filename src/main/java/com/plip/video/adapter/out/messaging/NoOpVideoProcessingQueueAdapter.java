@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "plip.aws", name = "enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "plip.storage", name = "type", havingValue = "noop")
 public class NoOpVideoProcessingQueueAdapter implements VideoProcessingQueuePort {
 
 	@Override
