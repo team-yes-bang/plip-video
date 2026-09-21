@@ -9,11 +9,16 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "plip.storage", name = "type", havingValue = "noop")
-public class NoOpThumbnailLambdaAdapter implements ThumbnailLambdaPort {
+@ConditionalOnProperty(prefix = "plip.storage", name = "type", havingValue = "local")
+public class LocalThumbnailLambdaAdapter implements ThumbnailLambdaPort {
 
 	@Override
 	public void invokeThumbnailGeneration(UUID videoUuid, String rawS3Key) {
-		log.warn("AWS disabled — stub thumbnail lambda invoke: videoUuid={}, rawS3Key={}", videoUuid, rawS3Key);
+		log.info(
+				"Local storage mode — auto thumbnail generation skipped: videoUuid={}, rawKey={}. "
+						+ "Use thumbnail-upload-url before complete or accept null thumbnail.",
+				videoUuid,
+				rawS3Key
+		);
 	}
 }

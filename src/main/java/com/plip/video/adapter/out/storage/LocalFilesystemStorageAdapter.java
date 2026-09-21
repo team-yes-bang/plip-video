@@ -14,8 +14,12 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -23,6 +27,12 @@ import java.util.UUID;
 @ConditionalOnProperty(prefix = "plip.storage", name = "type", havingValue = "local")
 @RequiredArgsConstructor
 public class LocalFilesystemStorageAdapter implements StoragePort {
+
+	private static final List<String> REQUIRED_DIRS = List.of(
+			"videos/raw",
+			"videos/processed",
+			"thumbnail"
+	);
 
 	private final AwsProperties awsProperties;
 	private final StorageProperties storageProperties;
@@ -43,8 +53,27 @@ public class LocalFilesystemStorageAdapter implements StoragePort {
 		}
 		rootPath = Path.of(local.root()).toAbsolutePath().normalize();
 		Files.createDirectories(rootPath);
+		for (String dir : REQUIRED_DIRS) {
+			Path dirPath = rootPath.resolve(dir);
+			Files.createDirectories(dirPath);
+			ensureWritable(dirPath);
+		}
 		publicBaseUrl = local.publicBaseUrl().replaceAll("/+$", "");
 		log.info("Local storage enabled at {}", rootPath);
+	}
+
+	private void ensureWritable(Path dirPath) {
+		if (Files.isWritable(dirPath)) {
+			return;
+		}
+		try {
+			Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwxrwxrwx");
+			Files.setPosixFilePermissions(dirPath, perms);
+		} catch (UnsupportedOperationException ex) {
+			log.warn("Local storage directory is not writable: {}", dirPath);
+		} catch (IOException ex) {
+			log.warn("Failed to set permissions on local storage directory {}: {}", dirPath, ex.getMessage());
+		}
 	}
 
 	@Override

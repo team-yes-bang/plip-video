@@ -56,6 +56,17 @@ public class LocalObjectStorageService {
 		return new LocalObjectReadResult(objectKey, new InputStreamResource(Files.newInputStream(path)));
 	}
 
+	public void copyObject(String sourceKey, String destinationKey) throws IOException {
+		Path sourcePath = storageAdapter.resolvePath(sourceKey);
+		if (!Files.isRegularFile(sourcePath) || Files.size(sourcePath) <= 0) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Source object not found: " + sourceKey);
+		}
+
+		Path destinationPath = storageAdapter.resolvePath(destinationKey);
+		Files.createDirectories(destinationPath.getParent());
+		Files.copy(sourcePath, destinationPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+	}
+
 	public static String contentTypeFor(String objectKey) {
 		if (objectKey.endsWith(".mp4")) {
 			return MediaType.valueOf("video/mp4").toString();
